@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Angry Birds 3D - Proyecto IG</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <!-- Overlay para el modal -->
+    <div id="modal-overlay" class="modal-overlay"></div>
+
+    <!-- Pantalla inicial -->
+    <div id="start-screen">
+      <h1>Proyecto IG 3D - Catapult</h1>
+      <p>
+        Usa tu catapulta para eliminar a todos los enemigos en cada nivel.<br />
+        Construye estrategias para derribar sus defensas y usa sabiamente tu
+        munición.<br />
+        ¡Cuidado! Si te quedas sin proyectiles, perderás.
+      </p>
+      <button id="start-btn">Comenzar Aventura</button>
+    </div>
+
+    <!-- Indicador de nivel -->
+    <div class="level-indicator">
+      Nivel: <span id="current-level">1</span> - Dificultad:
+      <span id="difficulty">Fácil</span>
+    </div>
+
+    <!-- Indicador de proyectil actual -->
+    <div class="projectile-indicator">
+      Proyectil actual: <span id="current-proj">Roca</span>
+    </div>
+
+    <!-- HUD -->
+    <div id="hud">
+      <div id="hud-info">
+        <p>Ángulo: <span id="angle">45</span>°</p>
+        <p>Potencia: <span id="power">50</span>%</p>
+        <p>Municiones:</p>
+        <p>Rocas: <span id="rockAmmo">0</span></p>
+        <p>Bombas: <span id="bombAmmo">0</span></p>
+      </div>
+    </div>
+
+    <!-- Botón de ayuda -->
+    <button id="help-btn">?</button>
+
+    <!-- Modal de ayuda -->
+    <div id="help-modal">
+      <h2>Controles del Juego</h2>
+      <ul>
+        <li><strong>Flechas ↑ ↓:</strong> Ajustar ángulo de disparo</li>
+        <li><strong>Flechas ← →:</strong> Rotar catapulta horizontalmente</li>
+        <li><strong>Q / A:</strong> Aumentar / Disminuir potencia</li>
+        <li><strong>ESPACIO:</strong> Disparar proyectil</li>
+        <li><strong>F:</strong> Cambiar entre Rocas y Bombas</li>
+        <li><strong>V:</strong> Cambiar entre vista de catapulta y orbital</li>
+        <li>
+          <strong>Ratón (vista orbital):</strong> Arrastrar para rotar, rueda
+          para zoom
+        </li>
+        <li><strong>ESC:</strong> Cerrar esta ventana</li>
+        <li><strong>R:</strong> Reiniciar nivel</li>
+      </ul>
+      <button id="close-help">Entendido</button>
+    </div>
+
+    <script type="module" src="main.js"></script>
+  </body>
+</html>
