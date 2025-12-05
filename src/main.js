@@ -5,7 +5,6 @@ import {
   updatePhysics,
   createExplosion,
   removeRigidBody,
-  getRigidBodies,
   checkCollisions,
   stabilizeObjects,
   getPhysicsWorld,
@@ -28,8 +27,7 @@ import {
   power,
   resetInputState,
   inputEnabled,
-  MAX_POWER, // Añadido
-  MIN_POWER, // Añadido si lo necesitas
+  MAX_POWER,
 } from "./lib/controls.js";
 import {
   initUI,
@@ -39,7 +37,6 @@ import {
   showGameOver,
 } from "./lib/ui.js";
 
-// Al principio de main.js, con las otras variables:
 let scene, renderer, orbitControls;
 let currentLevel = 0;
 let ammo = { rock: 0, bomb: 0 };
@@ -49,7 +46,7 @@ let catapultCamera, orbitCamera, activeCamera;
 let isGameRunning = false;
 let levelStartTime = 0;
 let catapult = null;
-let catapultConfig = null; // <-- AÑADE ESTA LÍNEA
+let catapultConfig = null;
 let trajectoryLine = null;
 let enemies = [];
 let projectiles = [];
@@ -86,22 +83,22 @@ function initGraphics() {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   document.getElementById("app").appendChild(renderer.domElement);
 
-  // Configurar cámaras - más altas para ver montañas
+  // Configurar cámaras
   catapultCamera = new THREE.PerspectiveCamera(
-    75, // Aumentado FOV para ver más
+    75,
     window.innerWidth / window.innerHeight,
     0.1,
-    2000 // Mayor distancia de renderizado
+    2000
   );
-  catapultCamera.position.set(-25, 12, 25); // Más alto
+  catapultCamera.position.set(-25, 12, 25);
 
   orbitCamera = new THREE.PerspectiveCamera(
-    75, // Aumentado FOV
+    75,
     window.innerWidth / window.innerHeight,
     0.1,
-    2000 // Mayor distancia
+    2000
   );
-  orbitCamera.position.set(40, 60, 40); // Mucho más alto para ver montañas
+  orbitCamera.position.set(40, 60, 40);
   orbitCamera.lookAt(0, 0, 0);
 
   activeCamera = catapultCamera;
@@ -111,9 +108,9 @@ function initGraphics() {
   orbitControls.enableDamping = true;
   orbitControls.dampingFactor = 0.05;
   orbitControls.enabled = false;
-  orbitControls.maxDistance = 300; // Permitir zoom out más
-  orbitControls.minDistance = 20;
-  orbitControls.maxPolarAngle = Math.PI / 2; // No mirar desde abajo
+  orbitControls.maxDistance = 150;
+  orbitControls.minDistance = 10;
+  orbitControls.maxPolarAngle = Math.PI / 2;
 
   // Crear línea de trayectoria
   const trajectoryMaterial = new THREE.LineDashedMaterial({
@@ -151,7 +148,6 @@ function initGraphics() {
     } else if (e.code === "Space" && inputEnabled && isGameRunning) {
       shootProjectile();
     } else if (e.code === "KeyR") {
-      // Reiniciar nivel (para debug)
       startLevel();
     }
   });
@@ -184,14 +180,11 @@ async function startLevel() {
   while (scene.children.length > 0) {
     scene.remove(scene.children[0]);
   }
-
-  // Reiniciar arrays
   enemies = [];
   projectiles = [];
   bricks = [];
   resetInputState();
 
-  // Restaurar luces básicas
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
   scene.add(ambientLight);
 
@@ -203,7 +196,7 @@ async function startLevel() {
   // Crear terreno
   createGround(scene);
 
-  // OBTENER EL PHYSICS WORLD
+  // OBTENER FISICAS
   const physicsWorld = getPhysicsWorld();
 
   if (!physicsWorld) {
@@ -220,18 +213,16 @@ async function startLevel() {
     return;
   }
 
-  // Obtener el objeto 3D de la catapulta
   catapult = catapultConfig.group;
 
-  // ¡IMPORTANTE! Copiar TODAS las propiedades de catapultConfig a userData
   catapult.userData = {
     ...catapult.userData,
-    ...catapultConfig, // Esto copia todas las propiedades: barrelGroup, muzzle, etc.
-    type: catapultConfig.type || "pirate-cannon", // Asegurar que tiene type
+    ...catapultConfig,
+    type: catapultConfig.type || "pirate-cannon",
     angle: 45,
     power: 30,
     baseRotation: 279.7,
-    currentElevation: Math.PI / 4, // 45° inicial
+    currentElevation: Math.PI / 4,
   };
 
   // Cargar nivel
@@ -312,10 +303,10 @@ function shootProjectile() {
   scene.add(projectile);
   projectiles.push(projectile);
 
-  // INICIALIZAR DATOS PARA BOMBAS - ¡IMPORTANTE!
+  // INICIALIZAR DATOS PARA BOMBAS
   if (projectileType === "bomb") {
     projectile.userData.hasExploded = false;
-    projectile.userData.collisionRadius = 0.45; // Radio de colisión específico para bombas
+    projectile.userData.collisionRadius = 0.45;
     console.log(`💣 Bomba lanzada - ID: ${projectile.id}`);
   }
 
@@ -331,8 +322,6 @@ function handleBombExplosion(projectile) {
     console.log(`⚠️ Esta bomba ya explotó, ignorando...`);
     return;
   }
-
-  // Marcar como explotada y que ya se disparó la explosión
   projectile.userData.hasExploded = true;
   projectile.userData.explosionTriggered = true;
 
@@ -350,11 +339,9 @@ function handleBombExplosion(projectile) {
 
   // Eliminar enemigos afectados
   affectedEnemies.forEach((enemy) => {
-    console.log(`🔥 Enemigo afectado por explosión`);
     removeEnemy(enemy);
   });
 
-  // También verificar enemigos cercanos manualmente
   for (let i = enemies.length - 1; i >= 0; i--) {
     const enemy = enemies[i];
     const distance = enemy.position.distanceTo(projectile.position);
@@ -425,7 +412,7 @@ function removeEnemy(enemy) {
 
   // Verificar victoria
   if (enemies.length === 0) {
-    setTimeout(() => completeLevel(), 1000); // Pequeño delay para que se vean los efectos
+    setTimeout(() => completeLevel(), 1000);
   }
 }
 
@@ -439,8 +426,6 @@ function createDeathEffect(position) {
       new THREE.MeshBasicMaterial({ color: 0x000000 })
     );
     particle.position.copy(position);
-
-    // Dirección aleatoria
     const direction = new THREE.Vector3(
       Math.random() * 2 - 1,
       Math.random() * 2 - 1,
@@ -464,7 +449,7 @@ function createDeathEffect(position) {
       particle.position.add(
         particle.userData.velocity.clone().multiplyScalar(0.08)
       );
-      particle.userData.velocity.y -= 0.08; // Gravedad
+      particle.userData.velocity.y -= 0.08;
       particle.material.opacity = life;
     });
 
@@ -490,21 +475,18 @@ function removeBrick(brick) {
 function updateTrajectory() {
   if (!catapult || !trajectoryLine || activeCamera !== catapultCamera) return;
 
-  // ¡USAR LAS MISMAS FUNCIONES QUE SHOOTPROJECTILE!
   const startPos = getProjectileStartPosition(catapult);
   const velocity = getLaunchVelocity(catapult);
 
-  // ¡IMPORTANTE! La física multiplica la velocidad por 1.2 (ver physics.js línea 104)
-  // Para que la trayectoria calculada coincida con la real, debemos hacer lo mismo.
   const physicsBoostFactor = 1.2;
   const boostedVelocity = velocity.clone().multiplyScalar(physicsBoostFactor);
 
   const points = [];
-  const gravity = 9.8; // Usar 9.8 para que coincida con la física (physics.js línea 68)
+  const gravity = 9.8;
   const timeStep = 0.1;
   const maxTime = 8;
 
-  // Calcular puntos de la trayectoria con la velocidad boosteada
+  // Calcular puntos de la trayectoria
   for (let t = 0; t <= maxTime; t += timeStep) {
     const x = startPos.x + boostedVelocity.x * t;
     const y = startPos.y + boostedVelocity.y * t - 0.5 * gravity * t * t;
@@ -548,15 +530,9 @@ function checkCollisionsNow() {
       return;
     }
 
-    // CASO 1: COLISIÓN DE BOMBA (nueva lógica)
+    // COLISIÓN DE BOMBA
     if (isBombCollision) {
-      // Verificar que la bomba aún no haya explotado
       if (!other.userData.hasExploded) {
-        console.log(
-          `💣 BOMBA impactó con ${enemy?.userData?.type || "objeto"}`
-        );
-
-        // Marcar que ya impactó
         other.userData.hasExploded = true;
 
         // Detener movimiento físico
@@ -574,7 +550,7 @@ function checkCollisionsNow() {
           other.position.y = 0.2;
         }
 
-        // Programar explosión en 1 segundo
+        // Explosión en 1 segundo
         setTimeout(() => {
           if (other.parent && other.userData.hasExploded !== false) {
             console.log(`💥 BOMBA explota después de impacto`);
@@ -582,11 +558,11 @@ function checkCollisionsNow() {
           }
         }, 1000);
 
-        return; // Salir para no procesar más esta colisión
+        return;
       }
     }
 
-    // CASO 2: ENEMIGO colisiona con PROYECTIL (NO bomba) - LÓGICA ORIGINAL
+    // ENEMIGO colisiona con PROYECTIL (NO bomba)
     if (
       enemies.includes(enemy) &&
       type === "projectile" &&
@@ -604,7 +580,7 @@ function checkCollisionsNow() {
       return;
     }
 
-    // CASO 3: ENEMIGO colisiona con LADRILLO MARRÓN (movable) - LÓGICA ORIGINAL
+    // ENEMIGO colisiona con LADRILLO MARRÓN
     if (
       enemies.includes(enemy) &&
       type === "brick" &&
@@ -618,9 +594,8 @@ function checkCollisionsNow() {
           velocity.x() ** 2 + velocity.y() ** 2 + velocity.z() ** 2
         );
 
-        // Aumentar el umbral de velocidad para mayor fiabilidad
+        // Umbral de velocidad
         if (speed > 2.0) {
-          // Cambiado de 1.0 a 2.0
           console.log(
             `✅ ENEMIGO GOLPEADO por ladrillo marrón (velocidad: ${speed.toFixed(
               2
@@ -648,14 +623,12 @@ function checkCollisionsNow() {
       }
       return;
     }
-
-    // NOTA: Si colisiona con ladrillo GRIS (immovable), NO hacemos nada
   });
 
-  // También verificar colisiones con el suelo
+  // Verificar colisiones con el suelo
   checkGroundCollisions();
 
-  // También verificar colisiones MANUALMENTE para mayor fiabilidad
+  // Verificar colisiones MANUALMENTE
   checkManualCollisions();
 
   // Limpiar objetos que hayan caído fuera del mapa
@@ -673,10 +646,6 @@ function checkGroundCollisions() {
       !projectile.userData.hasExploded &&
       projectile.position.y < 0.5 // Más cerca del suelo
     ) {
-      console.log(
-        `💣 BOMBA tocó el suelo en y=${projectile.position.y.toFixed(2)}`
-      );
-
       // Marcar que impactó
       projectile.userData.hasExploded = true;
 
@@ -693,7 +662,7 @@ function checkGroundCollisions() {
         );
       }
 
-      // Programar explosión en 1 segundo
+      // Explosión en 1 segundo
       setTimeout(() => {
         if (projectile.parent) {
           console.log(`💥 BOMBA explota en el suelo`);
@@ -705,7 +674,6 @@ function checkGroundCollisions() {
 }
 
 function checkManualCollisions() {
-  // Verificar colisiones manualmente para mayor fiabilidad
   for (let i = enemies.length - 1; i >= 0; i--) {
     const enemy = enemies[i];
 
@@ -730,7 +698,7 @@ function checkManualCollisions() {
         );
         removeEnemy(enemy);
         removeProjectile(projectile);
-        break; // Salir del bucle de proyectiles para este enemigo
+        break;
       }
     }
 
@@ -743,7 +711,7 @@ function checkManualCollisions() {
         const enemyRadius = enemy.userData.collisionRadius || 0.5;
         const brickRadius = brick.userData.collisionRadius || 0.6;
 
-        const collisionDistance = enemyRadius + brickRadius + 0.3; // Margen adicional
+        const collisionDistance = enemyRadius + brickRadius + 0.3;
 
         if (distance < collisionDistance && brick.userData.physicsBody) {
           // Verificar velocidad del ladrillo
@@ -779,7 +747,7 @@ function checkManualCollisions() {
 }
 
 function cleanupOutOfBounds() {
-  // Limpiar proyectiles - límites mucho más grandes por montañas lejanas
+  // Limpiar proyectiles
   for (let i = projectiles.length - 1; i >= 0; i--) {
     const projectile = projectiles[i];
     if (
@@ -852,22 +820,9 @@ function animate() {
     // Verificar colisiones
     checkCollisionsNow();
 
-    // IMPORTANTE: Actualizar cañón basado en input
+    // Actualizar cañón basado en input
     if (catapult) {
-      updateCatapult(catapult, deltaTime); // Esto ahora manejará las flechas
-
-      // Para debug: muestra valores actuales
-      if (catapult.userData) {
-        const elevDeg = (
-          (catapult.userData.currentElevation * 180) /
-          Math.PI
-        ).toFixed(1);
-        const rotDeg = (
-          (catapult.userData.baseRotation * 180) /
-          Math.PI
-        ).toFixed(1);
-        // console.log(`Cañón - Elev: ${elevDeg}°, Rot: ${rotDeg}°, Power: ${catapult.userData.power}`);
-      }
+      updateCatapult(catapult, deltaTime);
     }
 
     // Actualizar trayectoria
@@ -875,16 +830,9 @@ function animate() {
       updateTrajectory();
     }
 
-    // Si quieres una vista más desde el costado derecho:
-    // Actualizar cámara de cañón - ¡CAMBIOS AQUÍ!
-    // Actualizar cámara de cañón - ¡REVISADO!
+    // Actualizar cámara de cañón
     if (activeCamera === catapultCamera && catapult) {
-      // ⭐⭐ NUEVO: La cámara debe estar DETRÁS del cañón (en el eje Z negativo)
-      // Cuando el cañón mira hacia el centro, la cámara debe estar detrás mirando hacia adelante
-
-      // Offset de la cámara: DETRÁS, ARRIBA y a la DERECHA del cañón
-      // Z positivo es adelante del cañón, así que para estar detrás usamos Z negativo
-      const offset = new THREE.Vector3(-5, 5, -10); // ⭐ CAMBIADO: de 10 a -10 (detrás)
+      const offset = new THREE.Vector3(-5, 5, -10);
 
       // Obtener rotación total del cañón
       const initialRotation = catapult.userData?.initialRotation || 0;
@@ -898,14 +846,11 @@ function animate() {
       const cannonPosition =
         catapult.userData?.initialPosition || catapult.position.clone();
 
-      // Posicionar cámara DETRÁS del cañón
+      // Posicionar cámara
       catapultCamera.position.copy(cannonPosition).add(offset);
 
-      // Hacer que la cámara mire hacia DONDE APUNTA EL CAÑÓN
-      // Calcular punto de mira: un poco adelante en la dirección que apunta el cañón
-
-      // Dirección que apunta el cañón (adelante en Z+ en coordenadas locales)
-      const lookDirection = new THREE.Vector3(0, 0, 15); // Más adelante para mejor vista
+      // Dirección que apunta el cañón
+      const lookDirection = new THREE.Vector3(0, 0, 15);
 
       // Aplicar rotación del cañón a la dirección de mira
       lookDirection.applyEuler(new THREE.Euler(0, totalRotation, 0));

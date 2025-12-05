@@ -62,7 +62,6 @@ export function createRigidBody(
   angVel = null,
   isStaticStart = false
 ) {
-  // Si es objeto decorativo (montaña), no crear cuerpo físico
   if (mesh.userData.isDecorative) {
     console.log("Objeto decorativo creado sin física:", mesh.userData.type);
     mesh.position.copy(pos);
@@ -100,27 +99,22 @@ export function createRigidBody(
 
   const body = new Ammo.btRigidBody(rbInfo);
 
-  // Ajustar propiedades físicas según el tipo de objeto
+  // Ajustar propiedades físicas
   if (mass === 0) {
-    // Objetos estáticos
     body.setFriction(0.8);
     body.setRestitution(0.1);
-    body.setCollisionFlags(body.getCollisionFlags() | 1); // CF_STATIC_OBJECT
+    body.setCollisionFlags(body.getCollisionFlags() | 1);
   } else {
-    // Objetos dinámicos
     body.setFriction(0.5);
     body.setRestitution(0.4);
-
-    // Para objetos que deben ser estables al inicio
     if (isStaticStart) {
       body.setDamping(0.8, 0.8);
       body.setSleepingThresholds(0.1, 0.1);
     }
   }
 
-  // Para proyectiles, aplicar factor de potencia
+  // Para proyectiles
   if (vel && mesh.userData.type === "projectile") {
-    // Aumentar velocidad para mayor potencia
     const powerFactor = 1.2;
     const boostedVel = new Ammo.btVector3(
       vel.x * powerFactor,
@@ -145,7 +139,7 @@ export function createRigidBody(
 
   if (mass > 0) {
     rigidBodies.push(mesh);
-    body.setActivationState(4); // DISABLE_DEACTIVATION
+    body.setActivationState(4);
   }
 
   return body;
@@ -189,37 +183,28 @@ export function updatePhysics(deltaTime) {
 }
 
 export function stabilizeObjects() {
-  // Función para estabilizar objetos al inicio del nivel
   if (!physicsWorld || !Ammo) return;
 
-  // Ejecutar muchos pasos de física para que los objetos se asienten completamente
   for (let i = 0; i < 120; i++) {
-    // Aumentado de 60 a 120
     physicsWorld.stepSimulation(1 / 60, 10);
   }
 
-  // Detener completamente el movimiento de todos los objetos
   for (let i = 0; i < rigidBodies.length; i++) {
     const obj = rigidBodies[i];
     const body = obj.userData.physicsBody;
 
     if (body) {
-      // Detener completamente el movimiento
       body.setLinearVelocity(new Ammo.btVector3(0, 0, 0));
       body.setAngularVelocity(new Ammo.btVector3(0, 0, 0));
-
-      // Si es ladrillo inamovible, forzar posición estable
       if (
         obj.userData.type === "brick" &&
         obj.userData.brickType === "immovable"
       ) {
-        // Asegurar que esté completamente quieto
-        body.setDamping(1.0, 1.0); // Máximo amortiguamiento
+        body.setDamping(1.0, 1.0);
       }
     }
   }
 
-  // Ejecutar algunos pasos más después de detener todo
   for (let i = 0; i < 30; i++) {
     physicsWorld.stepSimulation(1 / 60, 10);
   }
@@ -233,15 +218,12 @@ export function checkCollisions() {
   for (let i = 0; i < rigidBodies.length; i++) {
     const obj1 = rigidBodies[i];
 
-    // 1. Verificar colisiones para ENEMIGOS (lógica ORIGINAL)
     if (obj1.userData.type === "enemy") {
       for (let j = 0; j < rigidBodies.length; j++) {
         if (i === j) continue;
 
         const obj2 = rigidBodies[j];
 
-        // Verificar si obj2 es algo que puede interactuar con enemigos
-        // ¡MANTENER LA LÓGICA ORIGINAL!
         if (
           obj2.userData.type === "projectile" ||
           obj2.userData.type === "brick"
@@ -252,7 +234,7 @@ export function checkCollisions() {
           const dz = obj1.position.z - obj2.position.z;
           const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
-          // Usar radios de colisión más generosos
+          // Usar radios de colisión
           const obj1Radius = obj1.userData.collisionRadius || 0.6;
           const obj2Radius =
             obj2.userData.collisionRadius ||
@@ -279,20 +261,16 @@ export function checkCollisions() {
       }
     }
 
-    // 2. Verificar colisiones de BOMBAS con CUALQUIER COSA (NUEVA lógica)
     if (
       obj1.userData.type === "projectile" &&
       obj1.userData.projectileType === "bomb" &&
-      !obj1.userData.hasExploded // Solo si no ha explotado aún
+      !obj1.userData.hasExploded
     ) {
       for (let j = 0; j < rigidBodies.length; j++) {
         if (i === j) continue;
 
         const obj2 = rigidBodies[j];
 
-        // IGNORAR:
-        // - Otras bombas
-        // - Objetos decorativos
         if (
           (obj2.userData.type === "projectile" &&
             obj2.userData.projectileType === "bomb") ||
@@ -329,16 +307,14 @@ export function checkCollisions() {
           );
 
           collisions.push({
-            enemy: obj2, // El objeto con el que colisionó
-            other: obj1, // La bomba
+            enemy: obj2,
+            other: obj1,
             type: "projectile",
             brickType: obj2.userData.brickType,
             objectType: obj2.userData.type,
             distance: distance,
-            isBombCollision: true, // Bandera para identificar que es colisión de bomba
+            isBombCollision: true,
           });
-
-          // Solo una colisión por bomba por frame
           break;
         }
       }
@@ -374,7 +350,6 @@ export function createExplosion(position, radius, force) {
           new Ammo.btVector3(impulse.x, impulse.y, impulse.z)
         );
 
-        // Si es enemigo y está suficientemente cerca, eliminarlo
         if (objThree.userData.type === "enemy" && distance < radius * 0.7) {
           affectedEnemies.push(objThree);
         }

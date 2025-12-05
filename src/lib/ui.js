@@ -76,7 +76,6 @@ export function updateHUD(ammo, angle, power, projectileType, maxPower = 200) {
 
   if (angleElement) angleElement.textContent = Math.round(angle);
   if (powerElement) {
-    // Mostrar valor y porcentaje
     const percentage = Math.round((power / maxPower) * 100);
     powerElement.textContent = `${Math.round(power)} (${percentage}%)`;
   }

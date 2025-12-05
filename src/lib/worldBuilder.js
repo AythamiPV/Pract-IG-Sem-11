@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { createRigidBody, Ammo } from "./physics.js";
 
-// Materiales básicos (sin texturas)
+// Materiales básicos
 const materials = {
   movable: new THREE.MeshBasicMaterial({ color: 0x8b4513 }),
   immovable: new THREE.MeshBasicMaterial({ color: 0x808080 }),
@@ -15,7 +15,6 @@ const materials = {
 };
 
 export function createGround(scene) {
-  // Terreno principal plano (con física) - MANTENER ESTE TAMAÑO
   const groundSize = 100;
   const groundGeometry = new THREE.PlaneGeometry(
     groundSize,
@@ -28,7 +27,6 @@ export function createGround(scene) {
   ground.position.y = 0;
   ground.receiveShadow = true;
 
-  // Marcar como suelo físico
   ground.userData.type = "ground";
   ground.userData.isDecorative = false;
 
@@ -43,8 +41,7 @@ export function createGround(scene) {
 
   scene.add(ground);
 
-  // SEGUNDO SUELO DECORATIVO (MUCHO MÁS GRANDE)
-  const decorativeGroundSize = 500; // 5 veces más grande
+  const decorativeGroundSize = 500;
   const decorativeGroundGeometry = new THREE.PlaneGeometry(
     decorativeGroundSize,
     decorativeGroundSize,
@@ -56,10 +53,9 @@ export function createGround(scene) {
     materials.ground
   );
   decorativeGround.rotation.x = -Math.PI / 2;
-  decorativeGround.position.y = -0.01; // Ligeramente más abajo para evitar z-fighting
+  decorativeGround.position.y = -0.01;
   decorativeGround.receiveShadow = true;
 
-  // Marcar como decorativo (sin física)
   decorativeGround.userData.type = "ground";
   decorativeGround.userData.isDecorative = true;
   decorativeGround.userData.isGround = true;
@@ -72,21 +68,17 @@ export function createGround(scene) {
 }
 
 function createMountains(scene, groundSize) {
-  // Crear un anillo de montañas alrededor del terreno - MUCHO MÁS ALEJADAS
-  const innerRingRadius = groundSize * 1.5; // 150 unidades desde centro
-  const outerRingRadius = groundSize * 2.0; // 200 unidades desde centro
-  const numMountains = 32; // Más montañas para cubrir más área
+  const innerRingRadius = groundSize * 1.5;
+  const outerRingRadius = groundSize * 2.0;
+  const numMountains = 32;
 
   for (let i = 0; i < numMountains; i++) {
     const angle = (i / numMountains) * Math.PI * 2;
-
-    // Posición en anillo (entre radio interno y externo)
     const radius =
       innerRingRadius + Math.random() * (outerRingRadius - innerRingRadius);
     const x = Math.cos(angle) * radius;
     const z = Math.sin(angle) * radius;
 
-    // Variar altura y tamaño - montañas más grandes al estar más lejos
     const distanceFactor = radius / innerRingRadius;
     const baseHeight = 20 * distanceFactor;
     const height = baseHeight + Math.random() * 30 * distanceFactor;
@@ -98,27 +90,24 @@ function createMountains(scene, groundSize) {
     scene.add(mountain);
   }
 
-  // Montañas más grandes en las esquinas - MUCHO MÁS ALEJADAS
-  const cornerDistance = groundSize * 1.8; // 180 unidades
-  createCornerMountain(scene, cornerDistance, cornerDistance, 35, 45); // Esquina NE
-  createCornerMountain(scene, -cornerDistance, cornerDistance, 35, 45); // Esquina NW
-  createCornerMountain(scene, cornerDistance, -cornerDistance, 35, 45); // Esquina SE
-  createCornerMountain(scene, -cornerDistance, -cornerDistance, 35, 45); // Esquina SW
+  const cornerDistance = groundSize * 1.8;
+  createCornerMountain(scene, cornerDistance, cornerDistance, 35, 45);
+  createCornerMountain(scene, -cornerDistance, cornerDistance, 35, 45);
+  createCornerMountain(scene, cornerDistance, -cornerDistance, 35, 45);
+  createCornerMountain(scene, -cornerDistance, -cornerDistance, 35, 45);
 
-  // Montañas extra grandes para horizonte - MUY ALEJADAS
-  const horizonDistance = groundSize * 2.2; // 220 unidades
-  createLargeMountain(scene, 0, horizonDistance, 50, 60); // Norte
-  createLargeMountain(scene, 0, -horizonDistance, 50, 60); // Sur
-  createLargeMountain(scene, horizonDistance, 0, 50, 60); // Este
-  createLargeMountain(scene, -horizonDistance, 0, 50, 60); // Oeste
+  const horizonDistance = groundSize * 2.2;
+  createLargeMountain(scene, 0, horizonDistance, 50, 60);
+  createLargeMountain(scene, 0, -horizonDistance, 50, 60);
+  createLargeMountain(scene, horizonDistance, 0, 50, 60);
+  createLargeMountain(scene, -horizonDistance, 0, 50, 60);
 
-  // Montañas diagonales adicionales
   const diagDistance = groundSize * 1.9;
   const diagOffset = diagDistance * Math.cos(Math.PI / 4);
-  createMediumMountain(scene, diagOffset, diagOffset, 30, 40); // NE diagonal
-  createMediumMountain(scene, -diagOffset, diagOffset, 30, 40); // NW diagonal
-  createMediumMountain(scene, diagOffset, -diagOffset, 30, 40); // SE diagonal
-  createMediumMountain(scene, -diagOffset, -diagOffset, 30, 40); // SW diagonal
+  createMediumMountain(scene, diagOffset, diagOffset, 30, 40);
+  createMediumMountain(scene, -diagOffset, diagOffset, 30, 40);
+  createMediumMountain(scene, diagOffset, -diagOffset, 30, 40);
+  createMediumMountain(scene, -diagOffset, -diagOffset, 30, 40);
 }
 
 function createMountain(x, z, width, height, depth, rotation) {
@@ -152,7 +141,6 @@ function createMountain(x, z, width, height, depth, rotation) {
 function createMediumMountain(scene, x, z, baseSize, height) {
   const group = new THREE.Group();
 
-  // Base
   const baseGeometry = new THREE.CylinderGeometry(
     baseSize,
     baseSize * 1.3,
@@ -163,7 +151,6 @@ function createMediumMountain(scene, x, z, baseSize, height) {
   const base = new THREE.Mesh(baseGeometry, materials.mountain);
   base.position.y = height * 0.25;
 
-  // Pico
   const peakGeometry = new THREE.ConeGeometry(
     baseSize * 0.5,
     height * 0.6,
@@ -175,11 +162,8 @@ function createMediumMountain(scene, x, z, baseSize, height) {
 
   group.add(base, peak);
   group.position.set(x, 0, z);
-
-  // Rotar aleatoriamente
   group.rotation.y = Math.random() * Math.PI * 2;
 
-  // Nieves en la cima
   if (height > 30) {
     const snowGeometry = new THREE.ConeGeometry(
       baseSize * 0.4,
@@ -204,8 +188,6 @@ function createMediumMountain(scene, x, z, baseSize, height) {
 
 function createCornerMountain(scene, x, z, baseSize, height) {
   const group = new THREE.Group();
-
-  // Base amplia
   const baseGeometry = new THREE.CylinderGeometry(
     baseSize,
     baseSize * 1.6,
@@ -216,7 +198,6 @@ function createCornerMountain(scene, x, z, baseSize, height) {
   const base = new THREE.Mesh(baseGeometry, materials.mountain);
   base.position.y = height * 0.25;
 
-  // Cuerpo principal
   const bodyGeometry = new THREE.ConeGeometry(
     baseSize * 0.8,
     height * 0.7,
@@ -226,7 +207,6 @@ function createCornerMountain(scene, x, z, baseSize, height) {
   const body = new THREE.Mesh(bodyGeometry, materials.mountain);
   body.position.y = height * 0.5 + height * 0.35;
 
-  // Pico
   const peakGeometry = new THREE.ConeGeometry(
     baseSize * 0.3,
     height * 0.3,
@@ -239,11 +219,9 @@ function createCornerMountain(scene, x, z, baseSize, height) {
   group.add(base, body, peak);
   group.position.set(x, 0, z);
 
-  // Rotar para que se vea bien desde la catapulta
   const angleToCenter = Math.atan2(-z, -x);
   group.rotation.y = angleToCenter + Math.PI / 4;
 
-  // Gran capa de nieve
   const snowGeometry = new THREE.ConeGeometry(
     baseSize * 0.25,
     height * 0.15,
@@ -269,7 +247,6 @@ function createCornerMountain(scene, x, z, baseSize, height) {
 function createLargeMountain(scene, x, z, baseSize, height) {
   const group = new THREE.Group();
 
-  // Base muy amplia
   const baseGeometry = new THREE.CylinderGeometry(
     baseSize * 1.5,
     baseSize * 2.0,
@@ -280,12 +257,10 @@ function createLargeMountain(scene, x, z, baseSize, height) {
   const base = new THREE.Mesh(baseGeometry, materials.mountain);
   base.position.y = height * 0.2;
 
-  // Cuerpo principal
   const bodyGeometry = new THREE.ConeGeometry(baseSize, height * 0.8, 12, 1);
   const body = new THREE.Mesh(bodyGeometry, materials.mountain);
   body.position.y = height * 0.4 + height * 0.4;
 
-  // Pico múltiple (crear varios picos)
   const numPeaks = 3;
   for (let i = 0; i < numPeaks; i++) {
     const peakSize = baseSize * (0.2 + Math.random() * 0.1);
@@ -301,7 +276,6 @@ function createLargeMountain(scene, x, z, baseSize, height) {
     );
     group.add(peak);
 
-    // Nieve en picos
     const snowGeometry = new THREE.ConeGeometry(
       peakSize * 0.8,
       peakHeight * 0.3,
@@ -319,7 +293,6 @@ function createLargeMountain(scene, x, z, baseSize, height) {
   group.add(base, body);
   group.position.set(x, 0, z);
 
-  // Orientar hacia el centro
   const angleToCenter = Math.atan2(-z, -x);
   group.rotation.y = angleToCenter;
 
@@ -337,23 +310,21 @@ export function createBrick(type, position, rotation = 0, isStable = true) {
 
   let size;
   if (isVertical) {
-    // Ladrillo vertical: 0.6 (ancho) x 1.2 (alto) x 0.6 (profundo)
     size = { x: 0.6, y: 1.2, z: 0.6 };
   } else {
-    // Ladrillo horizontal: 1.2 (largo) x 0.6 (alto) x 0.6 (ancho)
     size = { x: 1.2, y: 0.6, z: 0.6 };
   }
 
   // Material con textura para ladrillos
   let brickMaterial;
   if (isMovable) {
-    // Ladrillo marrón con textura de madera
+    // Ladrillo marrón con textura 
     brickMaterial = new THREE.MeshBasicMaterial({
       color: 0x8b4513,
       map: createBrickTexture(0x8b4513, isVertical),
     });
   } else {
-    // Ladrillo gris con textura de piedra
+    // Ladrillo gris con textura 
     brickMaterial = new THREE.MeshBasicMaterial({
       color: 0x808080,
       map: createBrickTexture(0x808080, isVertical),
@@ -364,8 +335,6 @@ export function createBrick(type, position, rotation = 0, isStable = true) {
     new THREE.BoxGeometry(size.x, size.y, size.z),
     brickMaterial
   );
-
-  // La posición ya viene calculada con el centro correcto desde levels.js
   brick.position.copy(position);
   brick.castShadow = true;
   brick.receiveShadow = true;
@@ -380,10 +349,8 @@ export function createBrick(type, position, rotation = 0, isStable = true) {
       new Ammo.btVector3(size.x / 2, size.y / 2, size.z / 2)
     );
 
-    // Crear cuaternión para la rotación
     const quat = new THREE.Quaternion();
     if (isVertical) {
-      // Para ladrillos verticales, rotar 90 grados en X
       quat.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
     }
 
@@ -405,21 +372,17 @@ export function createBrick(type, position, rotation = 0, isStable = true) {
   return brick;
 }
 
-// Función para crear texturas simples para ladrillos
 function createBrickTexture(baseColor, isVertical) {
-  // Crear un canvas para la textura
   const canvas = document.createElement("canvas");
   canvas.width = 64;
   canvas.height = 64;
   const ctx = canvas.getContext("2d");
 
-  // Color base
   ctx.fillStyle = `rgb(${(baseColor >> 16) & 255}, ${(baseColor >> 8) & 255}, ${
     baseColor & 255
   })`;
   ctx.fillRect(0, 0, 64, 64);
 
-  // Añadir patron de ladrillo
   ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
 
   if (isVertical) {
@@ -452,21 +415,18 @@ function createBrickTexture(baseColor, isVertical) {
 export function createEnemy(position) {
   const group = new THREE.Group();
 
-  // Cabeza
   const head = new THREE.Mesh(
     new THREE.SphereGeometry(0.3, 8, 8),
     materials.enemy
   );
   head.position.y = 0.8;
 
-  // Cuerpo
   const body = new THREE.Mesh(
     new THREE.CylinderGeometry(0.1, 0.1, 1, 8),
     materials.enemy
   );
   body.position.y = 0.3;
 
-  // Brazos
   const armGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.8, 6);
   const leftArm = new THREE.Mesh(armGeometry, materials.enemy);
   leftArm.position.set(0.4, 0.6, 0);
@@ -476,7 +436,6 @@ export function createEnemy(position) {
   rightArm.position.set(-0.4, 0.6, 0);
   rightArm.rotation.z = -Math.PI / 4;
 
-  // Piernas
   const legGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.8, 6);
   const leftLeg = new THREE.Mesh(legGeometry, materials.enemy);
   leftLeg.position.set(0.15, -0.2, 0);
@@ -513,14 +472,14 @@ export function createProjectile(type, position, velocity = null) {
   projectile.position.copy(position);
   projectile.castShadow = true;
 
-  // ¡PROPIEDADES COMPLETAS PARA BOMBAS!
+
   projectile.userData = {
     type: "projectile",
     projectileType: type,
     isBomb: isBomb,
     mass: isBomb ? 2.0 : 1.5,
-    hasExploded: false, // Control de estado
-    explosionTriggered: false, // Control de que ya se disparó explosión
+    hasExploded: false,
+    explosionTriggered: false, 
     collisionRadius: isBomb ? 0.45 : 0.4,
     isDecorative: false,
     brickType: undefined,
@@ -541,7 +500,7 @@ export async function loadCatapultModel(scene, physicsWorld) {
   console.log("Creando cañón de artillería pirata...");
 
   try {
-    // Crear grupo principal para el cañón
+    
     const cannonGroup = new THREE.Group();
     cannonGroup.name = "pirateCannon";
 
@@ -562,13 +521,13 @@ export async function loadCatapultModel(scene, physicsWorld) {
       color: 0x333333,
     });
 
-    // -------------------- CARRETA CON ROTACIÓN 90° --------------------
+    
 
     // Crear un grupo para la base y ruedas
     const baseWheelsGroup = new THREE.Group();
     baseWheelsGroup.name = "baseWheels";
-    // ¡ROTAR LA BASE Y RUEDAS 90°!
-    baseWheelsGroup.rotation.y = Math.PI / 2; // 90° a la derecha
+    
+    baseWheelsGroup.rotation.y = Math.PI / 2; 
     cannonGroup.add(baseWheelsGroup);
 
     // Base de la carreta
@@ -602,7 +561,7 @@ export async function loadCatapultModel(scene, physicsWorld) {
     rightFrontWheel.rotation.x = Math.PI / 2;
     baseWheelsGroup.add(rightFrontWheel);
 
-    // SOPORTE DE MADERA para los trunnions
+    // SOPORTE DE MADERA 
     const supportGeometry = new THREE.BoxGeometry(0.4, 0.15, 0.4);
     const leftSupport = new THREE.Mesh(supportGeometry, woodMaterial);
     leftSupport.position.set(0, 0.45, 0.2);
@@ -612,7 +571,7 @@ export async function loadCatapultModel(scene, physicsWorld) {
     rightSupport.position.set(0, 0.45, -0.2);
     baseWheelsGroup.add(rightSupport);
 
-    // -------------------- CAÑÓN (mantener orientación original) --------------------
+    // -------------------- CAÑÓN --------------------
     const cannonBarrelGroup = new THREE.Group();
     cannonBarrelGroup.name = "cannonBarrel";
     cannonBarrelGroup.position.set(0, 0.6, 0);
@@ -621,72 +580,65 @@ export async function loadCatapultModel(scene, physicsWorld) {
     // ¡INCLINACIÓN INICIAL DE 45°!
     cannonBarrelGroup.rotation.x = -Math.PI / 4; // 45° hacia arriba
 
-    // CAÑÓN principal - ORIENTACIÓN ORIGINAL
+    // CAÑÓN principal 
     const barrelGeometry = new THREE.CylinderGeometry(0.15, 0.18, 2.0, 12);
     const cannonBarrel = new THREE.Mesh(barrelGeometry, metalMaterial);
     cannonBarrel.position.set(0, 0, 0);
-    cannonBarrel.rotation.x = Math.PI / 2; // Horizontal (como en tu código)
+    cannonBarrel.rotation.x = Math.PI / 2; 
     cannonBarrelGroup.add(cannonBarrel);
 
-    // SOPORTES del cañón (trunnions)
+    // SOPORTES del cañón 
     const trunnionGeometry = new THREE.CylinderGeometry(0.06, 0.06, 0.3, 8);
 
     const leftTrunnion = new THREE.Mesh(trunnionGeometry, metalMaterial);
     leftTrunnion.position.set(0, 0, 0.2);
-    leftTrunnion.rotation.x = Math.PI / 2; // Horizontal
+    leftTrunnion.rotation.x = Math.PI / 2; 
     cannonBarrelGroup.add(leftTrunnion);
 
     const rightTrunnion = new THREE.Mesh(trunnionGeometry, metalMaterial);
     rightTrunnion.position.set(0, 0, -0.2);
-    rightTrunnion.rotation.x = Math.PI / 2; // Horizontal
+    rightTrunnion.rotation.x = Math.PI / 2; 
     cannonBarrelGroup.add(rightTrunnion);
 
     // BOCA del cañón
     const muzzleGeometry = new THREE.CylinderGeometry(0.22, 0.18, 0.25, 10);
     const muzzle = new THREE.Mesh(muzzleGeometry, metalMaterial);
     muzzle.name = "cannonMuzzle";
-    muzzle.position.set(0, 0, 1.0); // Eje Z positivo
-    muzzle.rotation.x = Math.PI / 2; // Horizontal
+    muzzle.position.set(0, 0, 1.0); 
+    muzzle.rotation.x = Math.PI / 2; 
     cannonBarrelGroup.add(muzzle);
 
     // CULATA del cañón
     const breechGeometry = new THREE.CylinderGeometry(0.22, 0.18, 0.3, 10);
     const breech = new THREE.Mesh(breechGeometry, metalMaterial);
-    breech.position.set(0, 0, -1.0); // Eje Z negativo
-    breech.rotation.x = Math.PI / 2; // Horizontal
+    breech.position.set(0, 0, -1.0); 
+    breech.rotation.x = Math.PI / 2; 
     cannonBarrelGroup.add(breech);
 
     // Tapa de culata (latón)
     const breechCapGeometry = new THREE.CylinderGeometry(0.25, 0.25, 0.08, 8);
     const breechCap = new THREE.Mesh(breechCapGeometry, brassMaterial);
-    breechCap.position.set(0, 0, -1.1); // Más atrás
-    breechCap.rotation.x = Math.PI / 2; // Horizontal
+    breechCap.position.set(0, 0, -1.1); 
+    breechCap.rotation.x = Math.PI / 2; 
     cannonBarrelGroup.add(breechCap);
 
     // Anillo central
     const ringGeometry = new THREE.CylinderGeometry(0.21, 0.21, 0.08, 10);
     const ring = new THREE.Mesh(ringGeometry, brassMaterial);
     ring.position.set(0, 0, 0);
-    ring.rotation.x = Math.PI / 2; // Horizontal
+    ring.rotation.x = Math.PI / 2; 
     cannonBarrelGroup.add(ring);
 
     // -------------------- POSICIONAMIENTO FINAL --------------------
+    const cornerX = -45; 
+    const cornerY = 0; 
+    const cornerZ = -45; 
 
-    // ¡POSICIÓN EN ESQUINA! El ground es de 100x100, así que las esquinas están en ±50
-    // Pero dejamos un margen para que no esté justo en el borde
-    const cornerX = -45; // Esquina izquierda (con margen de 5 unidades)
-    const cornerY = 0; // En el suelo
-    const cornerZ = -45; // Esquina inferior (con margen de 5 unidades)
-
-    // Posicionar TODO el cañón en la esquina
     cannonGroup.position.set(cornerX, cornerY, cornerZ);
 
-    // Calcular el ángulo para mirar hacia el centro (0,0)
-    // atan2(centroZ - posiciónZ, centroX - posiciónX)
     const angleToCenter = Math.atan2(0 - cornerZ, 0 - cornerX);
     cannonGroup.rotation.y = angleToCenter + Math.PI;
 
-    // Añadir a la escena
     scene.add(cannonGroup);
 
     console.log("Cañón pirata 3D creado exitosamente");
@@ -704,11 +656,9 @@ export async function loadCatapultModel(scene, physicsWorld) {
     // Calcular el punto de disparo
     scene.updateMatrixWorld(true);
 
-    // Obtener posición mundial de la boca
     const muzzleWorldPosition = new THREE.Vector3();
     muzzle.getWorldPosition(muzzleWorldPosition);
 
-    // Offset para proyectiles (en coordenadas locales del cañón)
     const projectileStartOffset = new THREE.Vector3(0, 0, 1.05);
 
     // Crear físicas para el cañón
@@ -741,13 +691,12 @@ export async function loadCatapultModel(scene, physicsWorld) {
         muzzle: muzzle,
         muzzleWorldPosition: muzzleWorldPosition,
 
-        // Propiedades de control
         angle: 45,
         power: 30,
         rotationSpeed: 0.02,
-        maxElevation: (80 * Math.PI) / 180, // 80 grados máximo
-        minElevation: (10 * Math.PI) / 180, // 10 grados mínimo
-        currentElevation: (45 * Math.PI) / 180, // 45° inicial
+        maxElevation: (80 * Math.PI) / 180, 
+        minElevation: (10 * Math.PI) / 180, 
+        currentElevation: (45 * Math.PI) / 180,
         baseRotation: 0,
         baseRotationSpeed: 0.03,
         maxBaseRotation: Infinity,
@@ -757,8 +706,6 @@ export async function loadCatapultModel(scene, physicsWorld) {
         baseRotationDirection: 0,
         type: "pirate-cannon",
         projectileStartOffset: projectileStartOffset,
-
-        // Propiedades de posición en esquina
         initialPosition: new THREE.Vector3(cornerX, cornerY, cornerZ),
         initialRotation: angleToCenter + Math.PI,
       };
@@ -788,8 +735,6 @@ export async function loadCatapultModel(scene, physicsWorld) {
       baseRotationDirection: 0,
       type: "pirate-cannon",
       projectileStartOffset: projectileStartOffset,
-
-      // Propiedades de posición en esquina
       initialPosition: new THREE.Vector3(cornerX, cornerY, cornerZ),
       initialRotation: angleToCenter + Math.PI,
     };

@@ -37276,7 +37276,6 @@ function createRigidBody(mesh, shape, mass, pos, quat) {
   var vel = arguments.length > 5 && arguments[5] !== undefined ? arguments[5] : null;
   var angVel = arguments.length > 6 && arguments[6] !== undefined ? arguments[6] : null;
   var isStaticStart = arguments.length > 7 && arguments[7] !== undefined ? arguments[7] : false;
-  // Si es objeto decorativo (montaña), no crear cuerpo físico
   if (mesh.userData.isDecorative) {
     console.log("Objeto decorativo creado sin física:", mesh.userData.type);
     mesh.position.copy(pos);
@@ -37302,27 +37301,22 @@ function createRigidBody(mesh, shape, mass, pos, quat) {
   var rbInfo = new Ammo.btRigidBodyConstructionInfo(mass, motionState, shape, localInertia);
   var body = new Ammo.btRigidBody(rbInfo);
 
-  // Ajustar propiedades físicas según el tipo de objeto
+  // Ajustar propiedades físicas
   if (mass === 0) {
-    // Objetos estáticos
     body.setFriction(0.8);
     body.setRestitution(0.1);
-    body.setCollisionFlags(body.getCollisionFlags() | 1); // CF_STATIC_OBJECT
+    body.setCollisionFlags(body.getCollisionFlags() | 1);
   } else {
-    // Objetos dinámicos
     body.setFriction(0.5);
     body.setRestitution(0.4);
-
-    // Para objetos que deben ser estables al inicio
     if (isStaticStart) {
       body.setDamping(0.8, 0.8);
       body.setSleepingThresholds(0.1, 0.1);
     }
   }
 
-  // Para proyectiles, aplicar factor de potencia
+  // Para proyectiles
   if (vel && mesh.userData.type === "projectile") {
-    // Aumentar velocidad para mayor potencia
     var powerFactor = 1.2;
     var boostedVel = new Ammo.btVector3(vel.x * powerFactor, vel.y * powerFactor, vel.z * powerFactor);
     body.setLinearVelocity(boostedVel);
@@ -37339,7 +37333,7 @@ function createRigidBody(mesh, shape, mass, pos, quat) {
   physicsWorld.addRigidBody(body);
   if (mass > 0) {
     rigidBodies.push(mesh);
-    body.setActivationState(4); // DISABLE_DEACTIVATION
+    body.setActivationState(4);
   }
   return body;
 }
@@ -37375,33 +37369,21 @@ function updatePhysics(deltaTime) {
   }
 }
 function stabilizeObjects() {
-  // Función para estabilizar objetos al inicio del nivel
   if (!physicsWorld || !Ammo) return;
-
-  // Ejecutar muchos pasos de física para que los objetos se asienten completamente
   for (var i = 0; i < 120; i++) {
-    // Aumentado de 60 a 120
     physicsWorld.stepSimulation(1 / 60, 10);
   }
-
-  // Detener completamente el movimiento de todos los objetos
   for (var _i = 0; _i < rigidBodies.length; _i++) {
     var obj = rigidBodies[_i];
     var body = obj.userData.physicsBody;
     if (body) {
-      // Detener completamente el movimiento
       body.setLinearVelocity(new Ammo.btVector3(0, 0, 0));
       body.setAngularVelocity(new Ammo.btVector3(0, 0, 0));
-
-      // Si es ladrillo inamovible, forzar posición estable
       if (obj.userData.type === "brick" && obj.userData.brickType === "immovable") {
-        // Asegurar que esté completamente quieto
-        body.setDamping(1.0, 1.0); // Máximo amortiguamiento
+        body.setDamping(1.0, 1.0);
       }
     }
   }
-
-  // Ejecutar algunos pasos más después de detener todo
   for (var _i2 = 0; _i2 < 30; _i2++) {
     physicsWorld.stepSimulation(1 / 60, 10);
   }
@@ -37411,15 +37393,10 @@ function checkCollisions() {
   var collisions = [];
   for (var i = 0; i < rigidBodies.length; i++) {
     var obj1 = rigidBodies[i];
-
-    // 1. Verificar colisiones para ENEMIGOS (lógica ORIGINAL)
     if (obj1.userData.type === "enemy") {
       for (var j = 0; j < rigidBodies.length; j++) {
         if (i === j) continue;
         var obj2 = rigidBodies[j];
-
-        // Verificar si obj2 es algo que puede interactuar con enemigos
-        // ¡MANTENER LA LÓGICA ORIGINAL!
         if (obj2.userData.type === "projectile" || obj2.userData.type === "brick") {
           // Calcular distancia real entre centros
           var dx = obj1.position.x - obj2.position.x;
@@ -37427,7 +37404,7 @@ function checkCollisions() {
           var dz = obj1.position.z - obj2.position.z;
           var distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
-          // Usar radios de colisión más generosos
+          // Usar radios de colisión
           var obj1Radius = obj1.userData.collisionRadius || 0.6;
           var obj2Radius = obj2.userData.collisionRadius || (obj2.userData.type === "projectile" ? obj2.userData.projectileType === "bomb" ? 0.45 : 0.4 : obj2.userData.brickType === "immovable" ? 0.7 : 0.65);
           var collisionDistance = obj1Radius + obj2Radius;
@@ -37443,17 +37420,10 @@ function checkCollisions() {
         }
       }
     }
-
-    // 2. Verificar colisiones de BOMBAS con CUALQUIER COSA (NUEVA lógica)
-    if (obj1.userData.type === "projectile" && obj1.userData.projectileType === "bomb" && !obj1.userData.hasExploded // Solo si no ha explotado aún
-    ) {
+    if (obj1.userData.type === "projectile" && obj1.userData.projectileType === "bomb" && !obj1.userData.hasExploded) {
       for (var _j = 0; _j < rigidBodies.length; _j++) {
         if (i === _j) continue;
         var _obj = rigidBodies[_j];
-
-        // IGNORAR:
-        // - Otras bombas
-        // - Objetos decorativos
         if (_obj.userData.type === "projectile" && _obj.userData.projectileType === "bomb" || _obj.userData.isDecorative) {
           continue;
         }
@@ -37472,17 +37442,13 @@ function checkCollisions() {
           console.log("\uD83D\uDCA3 Bomba colision\xF3 con ".concat(_obj.userData.type || "objeto", " (distancia: ").concat(_distance.toFixed(2), ")"));
           collisions.push({
             enemy: _obj,
-            // El objeto con el que colisionó
             other: obj1,
-            // La bomba
             type: "projectile",
             brickType: _obj.userData.brickType,
             objectType: _obj.userData.type,
             distance: _distance,
-            isBombCollision: true // Bandera para identificar que es colisión de bomba
+            isBombCollision: true
           });
-
-          // Solo una colisión por bomba por frame
           break;
         }
       }
@@ -37503,8 +37469,6 @@ function createExplosion(position, radius, force) {
         var direction = new THREE.Vector3().subVectors(objPos, position).normalize();
         var impulse = direction.multiplyScalar(force * (1 - distance / radius));
         objPhys.applyCentralImpulse(new Ammo.btVector3(impulse.x, impulse.y, impulse.z));
-
-        // Si es enemigo y está suficientemente cerca, eliminarlo
         if (objThree.userData.type === "enemy" && distance < radius * 0.7) {
           affectedEnemies.push(objThree);
         }
@@ -37547,7 +37511,7 @@ function _regenerator() { /*! regenerator-runtime -- Copyright (c) 2014-present,
 function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { i({}, "", {}); } catch (e) { i = 0; } _regeneratorDefine2 = function _regeneratorDefine(e, r, n, t) { function o(r, n) { _regeneratorDefine2(e, r, function (e) { return this._invoke(r, n, e); }); } r ? i ? i(e, r, { value: n, enumerable: !t, configurable: !t, writable: !t }) : e[r] = n : (o("next", 0), o("throw", 1), o("return", 2)); }, _regeneratorDefine2(e, r, n, t); }
 function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
 function _asyncToGenerator(n) { return function () { var t = this, e = arguments; return new Promise(function (r, o) { var a = n.apply(t, e); function _next(n) { asyncGeneratorStep(a, r, o, _next, _throw, "next", n); } function _throw(n) { asyncGeneratorStep(a, r, o, _next, _throw, "throw", n); } _next(void 0); }); }; }
-// Materiales básicos (sin texturas)
+// Materiales básicos
 var materials = {
   movable: new THREE.MeshBasicMaterial({
     color: 0x8b4513
@@ -37578,15 +37542,12 @@ var materials = {
   })
 };
 function createGround(scene) {
-  // Terreno principal plano (con física) - MANTENER ESTE TAMAÑO
   var groundSize = 100;
   var groundGeometry = new THREE.PlaneGeometry(groundSize, groundSize, 32, 32);
   var ground = new THREE.Mesh(groundGeometry, materials.ground);
   ground.rotation.x = -Math.PI / 2;
   ground.position.y = 0;
   ground.receiveShadow = true;
-
-  // Marcar como suelo físico
   ground.userData.type = "ground";
   ground.userData.isDecorative = false;
   if (_physics.Ammo) {
@@ -37596,16 +37557,12 @@ function createGround(scene) {
     (0, _physics.createRigidBody)(ground, groundShape, 0, pos, quat);
   }
   scene.add(ground);
-
-  // SEGUNDO SUELO DECORATIVO (MUCHO MÁS GRANDE)
-  var decorativeGroundSize = 500; // 5 veces más grande
+  var decorativeGroundSize = 500;
   var decorativeGroundGeometry = new THREE.PlaneGeometry(decorativeGroundSize, decorativeGroundSize, 64, 64);
   var decorativeGround = new THREE.Mesh(decorativeGroundGeometry, materials.ground);
   decorativeGround.rotation.x = -Math.PI / 2;
-  decorativeGround.position.y = -0.01; // Ligeramente más abajo para evitar z-fighting
+  decorativeGround.position.y = -0.01;
   decorativeGround.receiveShadow = true;
-
-  // Marcar como decorativo (sin física)
   decorativeGround.userData.type = "ground";
   decorativeGround.userData.isDecorative = true;
   decorativeGround.userData.isGround = true;
@@ -37614,20 +37571,14 @@ function createGround(scene) {
   return ground;
 }
 function createMountains(scene, groundSize) {
-  // Crear un anillo de montañas alrededor del terreno - MUCHO MÁS ALEJADAS
-  var innerRingRadius = groundSize * 1.5; // 150 unidades desde centro
-  var outerRingRadius = groundSize * 2.0; // 200 unidades desde centro
-  var numMountains = 32; // Más montañas para cubrir más área
-
+  var innerRingRadius = groundSize * 1.5;
+  var outerRingRadius = groundSize * 2.0;
+  var numMountains = 32;
   for (var i = 0; i < numMountains; i++) {
     var angle = i / numMountains * Math.PI * 2;
-
-    // Posición en anillo (entre radio interno y externo)
     var radius = innerRingRadius + Math.random() * (outerRingRadius - innerRingRadius);
     var x = Math.cos(angle) * radius;
     var z = Math.sin(angle) * radius;
-
-    // Variar altura y tamaño - montañas más grandes al estar más lejos
     var distanceFactor = radius / innerRingRadius;
     var baseHeight = 20 * distanceFactor;
     var height = baseHeight + Math.random() * 30 * distanceFactor;
@@ -37638,28 +37589,22 @@ function createMountains(scene, groundSize) {
     var mountain = createMountain(x, z, width, height, depth, angle);
     scene.add(mountain);
   }
-
-  // Montañas más grandes en las esquinas - MUCHO MÁS ALEJADAS
-  var cornerDistance = groundSize * 1.8; // 180 unidades
-  createCornerMountain(scene, cornerDistance, cornerDistance, 35, 45); // Esquina NE
-  createCornerMountain(scene, -cornerDistance, cornerDistance, 35, 45); // Esquina NW
-  createCornerMountain(scene, cornerDistance, -cornerDistance, 35, 45); // Esquina SE
-  createCornerMountain(scene, -cornerDistance, -cornerDistance, 35, 45); // Esquina SW
-
-  // Montañas extra grandes para horizonte - MUY ALEJADAS
-  var horizonDistance = groundSize * 2.2; // 220 unidades
-  createLargeMountain(scene, 0, horizonDistance, 50, 60); // Norte
-  createLargeMountain(scene, 0, -horizonDistance, 50, 60); // Sur
-  createLargeMountain(scene, horizonDistance, 0, 50, 60); // Este
-  createLargeMountain(scene, -horizonDistance, 0, 50, 60); // Oeste
-
-  // Montañas diagonales adicionales
+  var cornerDistance = groundSize * 1.8;
+  createCornerMountain(scene, cornerDistance, cornerDistance, 35, 45);
+  createCornerMountain(scene, -cornerDistance, cornerDistance, 35, 45);
+  createCornerMountain(scene, cornerDistance, -cornerDistance, 35, 45);
+  createCornerMountain(scene, -cornerDistance, -cornerDistance, 35, 45);
+  var horizonDistance = groundSize * 2.2;
+  createLargeMountain(scene, 0, horizonDistance, 50, 60);
+  createLargeMountain(scene, 0, -horizonDistance, 50, 60);
+  createLargeMountain(scene, horizonDistance, 0, 50, 60);
+  createLargeMountain(scene, -horizonDistance, 0, 50, 60);
   var diagDistance = groundSize * 1.9;
   var diagOffset = diagDistance * Math.cos(Math.PI / 4);
-  createMediumMountain(scene, diagOffset, diagOffset, 30, 40); // NE diagonal
-  createMediumMountain(scene, -diagOffset, diagOffset, 30, 40); // NW diagonal
-  createMediumMountain(scene, diagOffset, -diagOffset, 30, 40); // SE diagonal
-  createMediumMountain(scene, -diagOffset, -diagOffset, 30, 40); // SW diagonal
+  createMediumMountain(scene, diagOffset, diagOffset, 30, 40);
+  createMediumMountain(scene, -diagOffset, diagOffset, 30, 40);
+  createMediumMountain(scene, diagOffset, -diagOffset, 30, 40);
+  createMediumMountain(scene, -diagOffset, -diagOffset, 30, 40);
 }
 function createMountain(x, z, width, height, depth, rotation) {
   // Geometría de montaña (cono para simular pico)
@@ -37688,23 +37633,15 @@ function createMountain(x, z, width, height, depth, rotation) {
 }
 function createMediumMountain(scene, x, z, baseSize, height) {
   var group = new THREE.Group();
-
-  // Base
   var baseGeometry = new THREE.CylinderGeometry(baseSize, baseSize * 1.3, height * 0.5, 10, 1);
   var base = new THREE.Mesh(baseGeometry, materials.mountain);
   base.position.y = height * 0.25;
-
-  // Pico
   var peakGeometry = new THREE.ConeGeometry(baseSize * 0.5, height * 0.6, 8, 1);
   var peak = new THREE.Mesh(peakGeometry, materials.mountain);
   peak.position.y = height * 0.5 + height * 0.3;
   group.add(base, peak);
   group.position.set(x, 0, z);
-
-  // Rotar aleatoriamente
   group.rotation.y = Math.random() * Math.PI * 2;
-
-  // Nieves en la cima
   if (height > 30) {
     var snowGeometry = new THREE.ConeGeometry(baseSize * 0.4, height * 0.1, 8, 1);
     var snow = new THREE.Mesh(snowGeometry, new THREE.MeshBasicMaterial({
@@ -37720,29 +37657,19 @@ function createMediumMountain(scene, x, z, baseSize, height) {
 }
 function createCornerMountain(scene, x, z, baseSize, height) {
   var group = new THREE.Group();
-
-  // Base amplia
   var baseGeometry = new THREE.CylinderGeometry(baseSize, baseSize * 1.6, height * 0.5, 12, 1);
   var base = new THREE.Mesh(baseGeometry, materials.mountain);
   base.position.y = height * 0.25;
-
-  // Cuerpo principal
   var bodyGeometry = new THREE.ConeGeometry(baseSize * 0.8, height * 0.7, 10, 1);
   var body = new THREE.Mesh(bodyGeometry, materials.mountain);
   body.position.y = height * 0.5 + height * 0.35;
-
-  // Pico
   var peakGeometry = new THREE.ConeGeometry(baseSize * 0.3, height * 0.3, 8, 1);
   var peak = new THREE.Mesh(peakGeometry, materials.mountain);
   peak.position.y = height * 0.5 + height * 0.7 + height * 0.15;
   group.add(base, body, peak);
   group.position.set(x, 0, z);
-
-  // Rotar para que se vea bien desde la catapulta
   var angleToCenter = Math.atan2(-z, -x);
   group.rotation.y = angleToCenter + Math.PI / 4;
-
-  // Gran capa de nieve
   var snowGeometry = new THREE.ConeGeometry(baseSize * 0.25, height * 0.15, 8, 1);
   var snow = new THREE.Mesh(snowGeometry, new THREE.MeshBasicMaterial({
     color: 0xf0f8ff
@@ -37757,18 +37684,12 @@ function createCornerMountain(scene, x, z, baseSize, height) {
 }
 function createLargeMountain(scene, x, z, baseSize, height) {
   var group = new THREE.Group();
-
-  // Base muy amplia
   var baseGeometry = new THREE.CylinderGeometry(baseSize * 1.5, baseSize * 2.0, height * 0.4, 16, 1);
   var base = new THREE.Mesh(baseGeometry, materials.mountain);
   base.position.y = height * 0.2;
-
-  // Cuerpo principal
   var bodyGeometry = new THREE.ConeGeometry(baseSize, height * 0.8, 12, 1);
   var body = new THREE.Mesh(bodyGeometry, materials.mountain);
   body.position.y = height * 0.4 + height * 0.4;
-
-  // Pico múltiple (crear varios picos)
   var numPeaks = 3;
   for (var i = 0; i < numPeaks; i++) {
     var peakSize = baseSize * (0.2 + Math.random() * 0.1);
@@ -37778,8 +37699,6 @@ function createLargeMountain(scene, x, z, baseSize, height) {
     var peak = new THREE.Mesh(peakGeometry, materials.mountain);
     peak.position.set(peakOffset, height * 0.4 + height * 0.8 + peakHeight / 2, 0);
     group.add(peak);
-
-    // Nieve en picos
     var snowGeometry = new THREE.ConeGeometry(peakSize * 0.8, peakHeight * 0.3, 6, 1);
     var snow = new THREE.Mesh(snowGeometry, new THREE.MeshBasicMaterial({
       color: 0xf0f8ff
@@ -37789,8 +37708,6 @@ function createLargeMountain(scene, x, z, baseSize, height) {
   }
   group.add(base, body);
   group.position.set(x, 0, z);
-
-  // Orientar hacia el centro
   var angleToCenter = Math.atan2(-z, -x);
   group.rotation.y = angleToCenter;
   group.userData.isDecorative = true;
@@ -37806,14 +37723,12 @@ function createBrick(type, position) {
   var isVertical = rotation === 90;
   var size;
   if (isVertical) {
-    // Ladrillo vertical: 0.6 (ancho) x 1.2 (alto) x 0.6 (profundo)
     size = {
       x: 0.6,
       y: 1.2,
       z: 0.6
     };
   } else {
-    // Ladrillo horizontal: 1.2 (largo) x 0.6 (alto) x 0.6 (ancho)
     size = {
       x: 1.2,
       y: 0.6,
@@ -37824,21 +37739,19 @@ function createBrick(type, position) {
   // Material con textura para ladrillos
   var brickMaterial;
   if (isMovable) {
-    // Ladrillo marrón con textura de madera
+    // Ladrillo marrón con textura 
     brickMaterial = new THREE.MeshBasicMaterial({
       color: 0x8b4513,
       map: createBrickTexture(0x8b4513, isVertical)
     });
   } else {
-    // Ladrillo gris con textura de piedra
+    // Ladrillo gris con textura 
     brickMaterial = new THREE.MeshBasicMaterial({
       color: 0x808080,
       map: createBrickTexture(0x808080, isVertical)
     });
   }
   var brick = new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z), brickMaterial);
-
-  // La posición ya viene calculada con el centro correcto desde levels.js
   brick.position.copy(position);
   brick.castShadow = true;
   brick.receiveShadow = true;
@@ -37849,11 +37762,8 @@ function createBrick(type, position) {
   if (_physics.Ammo) {
     var mass = isMovable ? 2 : 0;
     var shape = new _physics.Ammo.btBoxShape(new _physics.Ammo.btVector3(size.x / 2, size.y / 2, size.z / 2));
-
-    // Crear cuaternión para la rotación
     var quat = new THREE.Quaternion();
     if (isVertical) {
-      // Para ladrillos verticales, rotar 90 grados en X
       quat.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
     }
     var physicsPos = new THREE.Vector3().copy(position);
@@ -37862,20 +37772,13 @@ function createBrick(type, position) {
   }
   return brick;
 }
-
-// Función para crear texturas simples para ladrillos
 function createBrickTexture(baseColor, isVertical) {
-  // Crear un canvas para la textura
   var canvas = document.createElement("canvas");
   canvas.width = 64;
   canvas.height = 64;
   var ctx = canvas.getContext("2d");
-
-  // Color base
   ctx.fillStyle = "rgb(".concat(baseColor >> 16 & 255, ", ").concat(baseColor >> 8 & 255, ", ").concat(baseColor & 255, ")");
   ctx.fillRect(0, 0, 64, 64);
-
-  // Añadir patron de ladrillo
   ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
   if (isVertical) {
     // Patrón para ladrillos verticales
@@ -37904,16 +37807,10 @@ function createBrickTexture(baseColor, isVertical) {
 }
 function createEnemy(position) {
   var group = new THREE.Group();
-
-  // Cabeza
   var head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 8), materials.enemy);
   head.position.y = 0.8;
-
-  // Cuerpo
   var body = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1, 8), materials.enemy);
   body.position.y = 0.3;
-
-  // Brazos
   var armGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.8, 6);
   var leftArm = new THREE.Mesh(armGeometry, materials.enemy);
   leftArm.position.set(0.4, 0.6, 0);
@@ -37921,8 +37818,6 @@ function createEnemy(position) {
   var rightArm = new THREE.Mesh(armGeometry, materials.enemy);
   rightArm.position.set(-0.4, 0.6, 0);
   rightArm.rotation.z = -Math.PI / 4;
-
-  // Piernas
   var legGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.8, 6);
   var leftLeg = new THREE.Mesh(legGeometry, materials.enemy);
   leftLeg.position.set(0.15, -0.2, 0);
@@ -37950,17 +37845,13 @@ function createProjectile(type, position) {
   var projectile = new THREE.Mesh(geometry, material);
   projectile.position.copy(position);
   projectile.castShadow = true;
-
-  // ¡PROPIEDADES COMPLETAS PARA BOMBAS!
   projectile.userData = {
     type: "projectile",
     projectileType: type,
     isBomb: isBomb,
     mass: isBomb ? 2.0 : 1.5,
     hasExploded: false,
-    // Control de estado
     explosionTriggered: false,
-    // Control de que ya se disparó explosión
     collisionRadius: isBomb ? 0.45 : 0.4,
     isDecorative: false,
     brickType: undefined
@@ -37984,7 +37875,6 @@ function _loadCatapultModel() {
         case 0:
           console.log("Creando cañón de artillería pirata...");
           _context.p = 1;
-          // Crear grupo principal para el cañón
           cannonGroup = new THREE.Group();
           cannonGroup.name = "pirateCannon";
 
@@ -38000,12 +37890,10 @@ function _loadCatapultModel() {
           });
           wheelMaterial = new THREE.MeshLambertMaterial({
             color: 0x333333
-          }); // -------------------- CARRETA CON ROTACIÓN 90° --------------------
-          // Crear un grupo para la base y ruedas
+          }); // Crear un grupo para la base y ruedas
           baseWheelsGroup = new THREE.Group();
           baseWheelsGroup.name = "baseWheels";
-          // ¡ROTAR LA BASE Y RUEDAS 90°!
-          baseWheelsGroup.rotation.y = Math.PI / 2; // 90° a la derecha
+          baseWheelsGroup.rotation.y = Math.PI / 2;
           cannonGroup.add(baseWheelsGroup);
 
           // Base de la carreta
@@ -38035,7 +37923,7 @@ function _loadCatapultModel() {
           rightFrontWheel.rotation.x = Math.PI / 2;
           baseWheelsGroup.add(rightFrontWheel);
 
-          // SOPORTE DE MADERA para los trunnions
+          // SOPORTE DE MADERA 
           supportGeometry = new THREE.BoxGeometry(0.4, 0.15, 0.4);
           leftSupport = new THREE.Mesh(supportGeometry, woodMaterial);
           leftSupport.position.set(0, 0.45, 0.2);
@@ -38044,7 +37932,7 @@ function _loadCatapultModel() {
           rightSupport.position.set(0, 0.45, -0.2);
           baseWheelsGroup.add(rightSupport);
 
-          // -------------------- CAÑÓN (mantener orientación original) --------------------
+          // -------------------- CAÑÓN --------------------
           cannonBarrelGroup = new THREE.Group();
           cannonBarrelGroup.name = "cannonBarrel";
           cannonBarrelGroup.position.set(0, 0.6, 0);
@@ -38053,69 +37941,60 @@ function _loadCatapultModel() {
           // ¡INCLINACIÓN INICIAL DE 45°!
           cannonBarrelGroup.rotation.x = -Math.PI / 4; // 45° hacia arriba
 
-          // CAÑÓN principal - ORIENTACIÓN ORIGINAL
+          // CAÑÓN principal 
           barrelGeometry = new THREE.CylinderGeometry(0.15, 0.18, 2.0, 12);
           cannonBarrel = new THREE.Mesh(barrelGeometry, metalMaterial);
           cannonBarrel.position.set(0, 0, 0);
-          cannonBarrel.rotation.x = Math.PI / 2; // Horizontal (como en tu código)
+          cannonBarrel.rotation.x = Math.PI / 2;
           cannonBarrelGroup.add(cannonBarrel);
 
-          // SOPORTES del cañón (trunnions)
+          // SOPORTES del cañón 
           trunnionGeometry = new THREE.CylinderGeometry(0.06, 0.06, 0.3, 8);
           leftTrunnion = new THREE.Mesh(trunnionGeometry, metalMaterial);
           leftTrunnion.position.set(0, 0, 0.2);
-          leftTrunnion.rotation.x = Math.PI / 2; // Horizontal
+          leftTrunnion.rotation.x = Math.PI / 2;
           cannonBarrelGroup.add(leftTrunnion);
           rightTrunnion = new THREE.Mesh(trunnionGeometry, metalMaterial);
           rightTrunnion.position.set(0, 0, -0.2);
-          rightTrunnion.rotation.x = Math.PI / 2; // Horizontal
+          rightTrunnion.rotation.x = Math.PI / 2;
           cannonBarrelGroup.add(rightTrunnion);
 
           // BOCA del cañón
           muzzleGeometry = new THREE.CylinderGeometry(0.22, 0.18, 0.25, 10);
           muzzle = new THREE.Mesh(muzzleGeometry, metalMaterial);
           muzzle.name = "cannonMuzzle";
-          muzzle.position.set(0, 0, 1.0); // Eje Z positivo
-          muzzle.rotation.x = Math.PI / 2; // Horizontal
+          muzzle.position.set(0, 0, 1.0);
+          muzzle.rotation.x = Math.PI / 2;
           cannonBarrelGroup.add(muzzle);
 
           // CULATA del cañón
           breechGeometry = new THREE.CylinderGeometry(0.22, 0.18, 0.3, 10);
           breech = new THREE.Mesh(breechGeometry, metalMaterial);
-          breech.position.set(0, 0, -1.0); // Eje Z negativo
-          breech.rotation.x = Math.PI / 2; // Horizontal
+          breech.position.set(0, 0, -1.0);
+          breech.rotation.x = Math.PI / 2;
           cannonBarrelGroup.add(breech);
 
           // Tapa de culata (latón)
           breechCapGeometry = new THREE.CylinderGeometry(0.25, 0.25, 0.08, 8);
           breechCap = new THREE.Mesh(breechCapGeometry, brassMaterial);
-          breechCap.position.set(0, 0, -1.1); // Más atrás
-          breechCap.rotation.x = Math.PI / 2; // Horizontal
+          breechCap.position.set(0, 0, -1.1);
+          breechCap.rotation.x = Math.PI / 2;
           cannonBarrelGroup.add(breechCap);
 
           // Anillo central
           ringGeometry = new THREE.CylinderGeometry(0.21, 0.21, 0.08, 10);
           ring = new THREE.Mesh(ringGeometry, brassMaterial);
           ring.position.set(0, 0, 0);
-          ring.rotation.x = Math.PI / 2; // Horizontal
+          ring.rotation.x = Math.PI / 2;
           cannonBarrelGroup.add(ring);
 
           // -------------------- POSICIONAMIENTO FINAL --------------------
-
-          // ¡POSICIÓN EN ESQUINA! El ground es de 100x100, así que las esquinas están en ±50
-          // Pero dejamos un margen para que no esté justo en el borde
-          cornerX = -45; // Esquina izquierda (con margen de 5 unidades)
-          cornerY = 0; // En el suelo
-          cornerZ = -45; // Esquina inferior (con margen de 5 unidades)
-          // Posicionar TODO el cañón en la esquina
+          cornerX = -45;
+          cornerY = 0;
+          cornerZ = -45;
           cannonGroup.position.set(cornerX, cornerY, cornerZ);
-
-          // Calcular el ángulo para mirar hacia el centro (0,0)
-          // atan2(centroZ - posiciónZ, centroX - posiciónX)
           angleToCenter = Math.atan2(0 - cornerZ, 0 - cornerX);
           cannonGroup.rotation.y = angleToCenter + Math.PI;
-
-          // Añadir a la escena
           scene.add(cannonGroup);
           console.log("Cañón pirata 3D creado exitosamente");
           console.log("Posición: esquina inferior izquierda");
@@ -38125,12 +38004,8 @@ function _loadCatapultModel() {
 
           // Calcular el punto de disparo
           scene.updateMatrixWorld(true);
-
-          // Obtener posición mundial de la boca
           muzzleWorldPosition = new THREE.Vector3();
           muzzle.getWorldPosition(muzzleWorldPosition);
-
-          // Offset para proyectiles (en coordenadas locales del cañón)
           projectileStartOffset = new THREE.Vector3(0, 0, 1.05); // Crear físicas para el cañón
           if (!(_physics.Ammo && physicsWorld)) {
             _context.n = 2;
@@ -38155,16 +38030,12 @@ function _loadCatapultModel() {
             barrelGroup: cannonBarrelGroup,
             muzzle: muzzle,
             muzzleWorldPosition: muzzleWorldPosition,
-            // Propiedades de control
             angle: 45,
             power: 30,
             rotationSpeed: 0.02,
             maxElevation: 80 * Math.PI / 180,
-            // 80 grados máximo
             minElevation: 10 * Math.PI / 180,
-            // 10 grados mínimo
             currentElevation: 45 * Math.PI / 180,
-            // 45° inicial
             baseRotation: 0,
             baseRotationSpeed: 0.03,
             maxBaseRotation: Infinity,
@@ -38174,7 +38045,6 @@ function _loadCatapultModel() {
             baseRotationDirection: 0,
             type: "pirate-cannon",
             projectileStartOffset: projectileStartOffset,
-            // Propiedades de posición en esquina
             initialPosition: new THREE.Vector3(cornerX, cornerY, cornerZ),
             initialRotation: angleToCenter + Math.PI
           };
@@ -38202,7 +38072,6 @@ function _loadCatapultModel() {
             baseRotationDirection: 0,
             type: "pirate-cannon",
             projectileStartOffset: projectileStartOffset,
-            // Propiedades de posición en esquina
             initialPosition: new THREE.Vector3(cornerX, cornerY, cornerZ),
             initialRotation: angleToCenter + Math.PI
           };
@@ -38655,8 +38524,6 @@ var projectileType = exports.projectileType = "rock";
 var inputEnabled = exports.inputEnabled = true;
 var MAX_POWER = exports.MAX_POWER = 100;
 var MIN_POWER = exports.MIN_POWER = 5;
-
-// Objeto global para el estado de las teclas
 var keyStates = exports.keyStates = {
   ArrowUp: false,
   ArrowDown: false,
@@ -38665,28 +38532,17 @@ var keyStates = exports.keyStates = {
   KeyQ: false,
   KeyA: false
 };
-
-// Función que SÍ se ejecuta cuando presionas teclas
 function handleInput(event) {
   if (!inputEnabled) return;
-
-  // Siempre actualizar keyStates
   if (event.type === "keydown") {
     keyStates[event.code] = true;
-    console.log("Tecla presionada: ".concat(event.code)); // Para debug
-
-    // Cambiar tipo de proyectil con F
     if (event.code === "KeyF") {
       exports.projectileType = projectileType = projectileType === "rock" ? "bomb" : "rock";
       console.log("Proyectil cambiado a: ".concat(projectileType));
     }
-
-    // Espacio para disparar
     if (event.code === "Space") {
       console.log("Espacio presionado - disparar desde main.js");
     }
-
-    // Mostrar mensajes específicos para Q y A
     if (event.code === "KeyQ") {
       console.log("Tecla Q presionada - aumentar potencia");
     }
@@ -38696,8 +38552,6 @@ function handleInput(event) {
   } else if (event.type === "keyup") {
     keyStates[event.code] = false;
   }
-
-  // Prevenir comportamiento por defecto para las flechas, Q y A
   if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "KeyQ", "KeyA"].includes(event.code)) {
     event.preventDefault();
   }
@@ -38711,8 +38565,6 @@ function resetInputState() {
     keyStates[key] = false;
   }
 }
-
-// ¡ESTA ES LA FUNCIÓN CLAVE! Se llama en cada frame
 function updateCatapult(catapult, deltaTime) {
   if (!catapult || !catapult.userData) {
     console.warn("No hay catapulta o userData");
@@ -38722,18 +38574,15 @@ function updateCatapult(catapult, deltaTime) {
 
   // ---- CONTROL DE POTENCIA (Teclas Q/A) ----
   if (keyStates.KeyQ) {
-    // Tecla Q - Aumentar potencia (MÁS LENTO)
-    userData.power += 1 * deltaTime * 60; // Reducido de 1.0 a 0.5
+    userData.power += 1 * deltaTime * 60;
     userData.power = Math.min(userData.power, MAX_POWER);
   }
   if (keyStates.KeyA) {
-    // Tecla A - Disminuir potencia (MÁS LENTO)
-    userData.power -= 1 * deltaTime * 60; // Reducido de 1.0 a 0.5
+    userData.power -= 1 * deltaTime * 60;
     userData.power = Math.max(userData.power, MIN_POWER);
   }
 
   // ---- CONTROL DE ELEVACIÓN (Flechas Arriba/Abajo) ----
-  // Reducida la sensibilidad de 0.03 a 0.015 (la mitad)
   if (keyStates.ArrowUp) {
     userData.currentElevation += 0.0055 * deltaTime * 60;
   }
@@ -38745,7 +38594,6 @@ function updateCatapult(catapult, deltaTime) {
   userData.currentElevation = Math.max(userData.minElevation, Math.min(userData.maxElevation, userData.currentElevation));
 
   // ---- CONTROL DE ROTACIÓN (Flechas Izquierda/Derecha) ----
-  // Reducida la sensibilidad de 0.04 a 0.02 (la mitad)
   if (keyStates.ArrowLeft) {
     userData.baseRotation += 0.005 * deltaTime * 60;
   }
@@ -38754,31 +38602,17 @@ function updateCatapult(catapult, deltaTime) {
   }
 
   // ---- APLICAR LAS TRANSFORMACIONES VISUALES ----
-
-  // 1. Aplicar elevación al cañón
   if (userData.barrelGroup) {
     userData.barrelGroup.rotation.x = -userData.currentElevation;
   }
-
-  // 2. Aplicar rotación horizontal a TODO el cañón
   catapult.rotation.y = userData.initialRotation + userData.baseRotation;
-
-  // Actualizar variables globales para el HUD
   exports.angle = angle = userData.currentElevation * 180 / Math.PI;
   exports.power = power = userData.power;
 }
 function getLaunchDirection(catapult) {
   var angleRad = catapult.userData.angle * Math.PI / 180;
-
-  // Para catapulta medieval, la dirección es más horizontal
-  // Ajustar el vector de dirección para que sea más realista
-  var launchAngle = angleRad * 1.2; // Aumentar ligeramente el ángulo efectivo
-
-  var direction = new THREE.Vector3(0, Math.sin(launchAngle) * 0.8 + 0.2,
-  // Más componente horizontal
-  -Math.cos(launchAngle));
-
-  // Rotar según la orientación de la catapulta
+  var launchAngle = angleRad * 1.2;
+  var direction = new THREE.Vector3(0, Math.sin(launchAngle) * 0.8 + 0.2, -Math.cos(launchAngle));
   direction.applyEuler(new THREE.Euler(0, catapult.rotation.y, 0));
   return direction.normalize();
 }
@@ -38795,28 +38629,15 @@ function getProjectileStartPosition(catapult) {
       userData.muzzle.getWorldPosition(worldPosition);
       return worldPosition;
     }
-
-    // Fallback: calcular desde offset
     var offset = userData.projectileStartOffset || new THREE.Vector3(0, 0, 1.05);
     var rotatedOffset = offset.clone();
-
-    // Aplicar elevación (NEGATIVA, igual que visualmente)
     rotatedOffset.applyEuler(new THREE.Euler(-(userData.currentElevation || 0), 0, 0));
-
-    // Aplicar rotación horizontal DEL USUARIO
     rotatedOffset.applyEuler(new THREE.Euler(0, userData.baseRotation || 0, 0));
-
-    // ¡ACTUALIZADO! Aplicar rotación INICIAL del cañón (hacia el centro desde la esquina)
-    // En lugar de Math.PI fijo, usar la rotación inicial calculada
     var initialRotation = userData.initialRotation || Math.PI;
     rotatedOffset.applyEuler(new THREE.Euler(0, initialRotation, 0));
-
-    // ¡ACTUALIZADO! Usar la posición INICIAL del cañón (en la esquina)
     var initialPosition = userData.initialPosition || catapult.position || new THREE.Vector3(0, 0, -15);
     return initialPosition.clone().add(rotatedOffset);
   }
-
-  // Para catapulta (código original)
   var cup = userData.cup;
   if (!cup) {
     catapult.traverse(function (child) {
@@ -38830,8 +38651,6 @@ function getProjectileStartPosition(catapult) {
     cup.getWorldPosition(_worldPosition);
     return _worldPosition;
   }
-
-  // Fallback
   return new THREE.Vector3(-25, 3, 0);
 }
 function getLaunchVelocity(catapult) {
@@ -38840,35 +38659,20 @@ function getLaunchVelocity(catapult) {
   }
   var userData = catapult.userData;
   var powerValue = userData.power || 30;
-
-  // Para cañón pirata
   if (userData.type === "pirate-cannon") {
     var baseVelocity = 20 + powerValue / 100 * 30;
     var _direction = new THREE.Vector3(0, 0, 1);
-
-    // Aplicar elevación NEGATIVA (igual que visualmente)
     var elevation = userData.currentElevation || 45 * Math.PI / 180;
     _direction.applyEuler(new THREE.Euler(-elevation, 0, 0));
-
-    // Aplicar rotación horizontal
     _direction.applyEuler(new THREE.Euler(0, userData.baseRotation || 0, 0));
-
-    // Aplicar rotación inicial del cañón (180°)
-    // Aplicar rotación inicial del cañón
     var initialRotation = userData.initialRotation || Math.PI;
     _direction.applyEuler(new THREE.Euler(0, initialRotation, 0));
     return _direction.multiplyScalar(baseVelocity);
   }
-
-  // Para catapulta (código original)
   var angleRad = userData.angle * Math.PI / 180;
   var launchAngle = angleRad * 1.2;
   var direction = new THREE.Vector3(0, Math.sin(launchAngle) * 0.8 + 0.2, -Math.cos(launchAngle));
-
-  // Rotar según la orientación de la catapulta
   direction.applyEuler(new THREE.Euler(0, catapult.rotation.y, 0));
-
-  // Ajustar escala para catapulta medieval
   var velocity = powerValue / 15;
   return direction.normalize().multiplyScalar(velocity);
 }
@@ -38956,7 +38760,6 @@ function updateHUD(ammo, angle, power, projectileType) {
   var currentProjElement = document.getElementById("current-proj");
   if (angleElement) angleElement.textContent = Math.round(angle);
   if (powerElement) {
-    // Mostrar valor y porcentaje
     var percentage = Math.round(power / maxPower * 100);
     powerElement.textContent = "".concat(Math.round(power), " (").concat(percentage, "%)");
   }
@@ -39046,7 +38849,6 @@ function _regenerator() { /*! regenerator-runtime -- Copyright (c) 2014-present,
 function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { i({}, "", {}); } catch (e) { i = 0; } _regeneratorDefine2 = function _regeneratorDefine(e, r, n, t) { function o(r, n) { _regeneratorDefine2(e, r, function (e) { return this._invoke(r, n, e); }); } r ? i ? i(e, r, { value: n, enumerable: !t, configurable: !t, writable: !t }) : e[r] = n : (o("next", 0), o("throw", 1), o("return", 2)); }, _regeneratorDefine2(e, r, n, t); }
 function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
 function _asyncToGenerator(n) { return function () { var t = this, e = arguments; return new Promise(function (r, o) { var a = n.apply(t, e); function _next(n) { asyncGeneratorStep(a, r, o, _next, _throw, "next", n); } function _throw(n) { asyncGeneratorStep(a, r, o, _next, _throw, "throw", n); } _next(void 0); }); }; }
-// Al principio de main.js, con las otras variables:
 var scene, renderer, orbitControls;
 var currentLevel = 0;
 var ammo = {
@@ -39062,7 +38864,7 @@ var catapultCamera, orbitCamera, activeCamera;
 var isGameRunning = false;
 var levelStartTime = 0;
 var catapult = null;
-var catapultConfig = null; // <-- AÑADE ESTA LÍNEA
+var catapultConfig = null;
 var trajectoryLine = null;
 var enemies = [];
 var projectiles = [];
@@ -39120,18 +38922,11 @@ function initGraphics() {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   document.getElementById("app").appendChild(renderer.domElement);
 
-  // Configurar cámaras - más altas para ver montañas
-  catapultCamera = new THREE.PerspectiveCamera(75,
-  // Aumentado FOV para ver más
-  window.innerWidth / window.innerHeight, 0.1, 2000 // Mayor distancia de renderizado
-  );
-  catapultCamera.position.set(-25, 12, 25); // Más alto
-
-  orbitCamera = new THREE.PerspectiveCamera(75,
-  // Aumentado FOV
-  window.innerWidth / window.innerHeight, 0.1, 2000 // Mayor distancia
-  );
-  orbitCamera.position.set(40, 60, 40); // Mucho más alto para ver montañas
+  // Configurar cámaras
+  catapultCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+  catapultCamera.position.set(-25, 12, 25);
+  orbitCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+  orbitCamera.position.set(40, 60, 40);
   orbitCamera.lookAt(0, 0, 0);
   activeCamera = catapultCamera;
 
@@ -39140,9 +38935,9 @@ function initGraphics() {
   orbitControls.enableDamping = true;
   orbitControls.dampingFactor = 0.05;
   orbitControls.enabled = false;
-  orbitControls.maxDistance = 300; // Permitir zoom out más
-  orbitControls.minDistance = 20;
-  orbitControls.maxPolarAngle = Math.PI / 2; // No mirar desde abajo
+  orbitControls.maxDistance = 150;
+  orbitControls.minDistance = 10;
+  orbitControls.maxPolarAngle = Math.PI / 2;
 
   // Crear línea de trayectoria
   var trajectoryMaterial = new THREE.LineDashedMaterial({
@@ -39179,7 +38974,6 @@ function initGraphics() {
     } else if (e.code === "Space" && _controls.inputEnabled && isGameRunning) {
       shootProjectile();
     } else if (e.code === "KeyR") {
-      // Reiniciar nivel (para debug)
       startLevel();
     }
   });
@@ -39215,14 +39009,10 @@ function _startLevel() {
           while (scene.children.length > 0) {
             scene.remove(scene.children[0]);
           }
-
-          // Reiniciar arrays
           enemies = [];
           projectiles = [];
           bricks = [];
           (0, _controls.resetInputState)();
-
-          // Restaurar luces básicas
           ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
           scene.add(ambientLight);
           directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
@@ -39233,7 +39023,7 @@ function _startLevel() {
           // Crear terreno
           (0, _worldBuilder.createGround)(scene);
 
-          // OBTENER EL PHYSICS WORLD
+          // OBTENER FISICAS
           physicsWorld = (0, _physics.getPhysicsWorld)();
           if (physicsWorld) {
             _context2.n = 1;
@@ -39253,18 +39043,13 @@ function _startLevel() {
           console.error("ERROR: No se pudo crear la catapulta");
           return _context2.a(2);
         case 3:
-          // Obtener el objeto 3D de la catapulta
           catapult = catapultConfig.group;
-
-          // ¡IMPORTANTE! Copiar TODAS las propiedades de catapultConfig a userData
           catapult.userData = _objectSpread(_objectSpread(_objectSpread({}, catapult.userData), catapultConfig), {}, {
-            // Esto copia todas las propiedades: barrelGroup, muzzle, etc.
             type: catapultConfig.type || "pirate-cannon",
-            // Asegurar que tiene type
             angle: 45,
             power: 30,
             baseRotation: 279.7,
-            currentElevation: Math.PI / 4 // 45° inicial
+            currentElevation: Math.PI / 4
           });
 
           // Cargar nivel
@@ -39358,10 +39143,10 @@ function shootProjectile() {
   scene.add(projectile);
   projectiles.push(projectile);
 
-  // INICIALIZAR DATOS PARA BOMBAS - ¡IMPORTANTE!
+  // INICIALIZAR DATOS PARA BOMBAS
   if (_controls.projectileType === "bomb") {
     projectile.userData.hasExploded = false;
-    projectile.userData.collisionRadius = 0.45; // Radio de colisión específico para bombas
+    projectile.userData.collisionRadius = 0.45;
     console.log("\uD83D\uDCA3 Bomba lanzada - ID: ".concat(projectile.id));
   }
   (0, _ui.updateHUD)(ammo, _controls.angle, _controls.power, _controls.projectileType);
@@ -39372,8 +39157,6 @@ function handleBombExplosion(projectile) {
     console.log("\u26A0\uFE0F Esta bomba ya explot\xF3, ignorando...");
     return;
   }
-
-  // Marcar como explotada y que ya se disparó la explosión
   projectile.userData.hasExploded = true;
   projectile.userData.explosionTriggered = true;
   console.log("\uD83D\uDCA5 EXPLOSI\xD3N de bomba en posici\xF3n:", projectile.position);
@@ -39385,11 +39168,8 @@ function handleBombExplosion(projectile) {
 
   // Eliminar enemigos afectados
   affectedEnemies.forEach(function (enemy) {
-    console.log("\uD83D\uDD25 Enemigo afectado por explosi\xF3n");
     removeEnemy(enemy);
   });
-
-  // También verificar enemigos cercanos manualmente
   for (var i = enemies.length - 1; i >= 0; i--) {
     var enemy = enemies[i];
     var distance = enemy.position.distanceTo(projectile.position);
@@ -39453,7 +39233,7 @@ function removeEnemy(enemy) {
   if (enemies.length === 0) {
     setTimeout(function () {
       return completeLevel();
-    }, 1000); // Pequeño delay para que se vean los efectos
+    }, 1000);
   }
 }
 function createDeathEffect(position) {
@@ -39464,8 +39244,6 @@ function createDeathEffect(position) {
       color: 0x000000
     }));
     particle.position.copy(position);
-
-    // Dirección aleatoria
     var direction = new THREE.Vector3(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1).normalize();
     particle.userData.velocity = direction.multiplyScalar(1.5 + Math.random() * 1.5);
     particles.add(particle);
@@ -39478,7 +39256,7 @@ function createDeathEffect(position) {
     life -= 0.04;
     particles.children.forEach(function (particle) {
       particle.position.add(particle.userData.velocity.clone().multiplyScalar(0.08));
-      particle.userData.velocity.y -= 0.08; // Gravedad
+      particle.userData.velocity.y -= 0.08;
       particle.material.opacity = life;
     });
     if (life > 0) {
@@ -39499,21 +39277,16 @@ function removeBrick(brick) {
 }
 function updateTrajectory() {
   if (!catapult || !trajectoryLine || activeCamera !== catapultCamera) return;
-
-  // ¡USAR LAS MISMAS FUNCIONES QUE SHOOTPROJECTILE!
   var startPos = (0, _controls.getProjectileStartPosition)(catapult);
   var velocity = (0, _controls.getLaunchVelocity)(catapult);
-
-  // ¡IMPORTANTE! La física multiplica la velocidad por 1.2 (ver physics.js línea 104)
-  // Para que la trayectoria calculada coincida con la real, debemos hacer lo mismo.
   var physicsBoostFactor = 1.2;
   var boostedVelocity = velocity.clone().multiplyScalar(physicsBoostFactor);
   var points = [];
-  var gravity = 9.8; // Usar 9.8 para que coincida con la física (physics.js línea 68)
+  var gravity = 9.8;
   var timeStep = 0.1;
   var maxTime = 8;
 
-  // Calcular puntos de la trayectoria con la velocidad boosteada
+  // Calcular puntos de la trayectoria
   for (var t = 0; t <= maxTime; t += timeStep) {
     var x = startPos.x + boostedVelocity.x * t;
     var y = startPos.y + boostedVelocity.y * t - 0.5 * gravity * t * t;
@@ -39560,14 +39333,9 @@ function checkCollisionsNow() {
       return;
     }
 
-    // CASO 1: COLISIÓN DE BOMBA (nueva lógica)
+    // COLISIÓN DE BOMBA
     if (isBombCollision) {
-      // Verificar que la bomba aún no haya explotado
       if (!other.userData.hasExploded) {
-        var _enemy$userData2;
-        console.log("\uD83D\uDCA3 BOMBA impact\xF3 con ".concat((enemy === null || enemy === void 0 || (_enemy$userData2 = enemy.userData) === null || _enemy$userData2 === void 0 ? void 0 : _enemy$userData2.type) || "objeto"));
-
-        // Marcar que ya impactó
         other.userData.hasExploded = true;
 
         // Detener movimiento físico
@@ -39581,18 +39349,18 @@ function checkCollisionsNow() {
           other.position.y = 0.2;
         }
 
-        // Programar explosión en 1 segundo
+        // Explosión en 1 segundo
         setTimeout(function () {
           if (other.parent && other.userData.hasExploded !== false) {
             console.log("\uD83D\uDCA5 BOMBA explota despu\xE9s de impacto");
             handleBombExplosion(other);
           }
         }, 1000);
-        return; // Salir para no procesar más esta colisión
+        return;
       }
     }
 
-    // CASO 2: ENEMIGO colisiona con PROYECTIL (NO bomba) - LÓGICA ORIGINAL
+    // ENEMIGO colisiona con PROYECTIL (NO bomba)
     if (enemies.includes(enemy) && type === "projectile" && other.userData.projectileType !== "bomb") {
       if (projectiles.includes(other)) {
         console.log("\u2705 ENEMIGO GOLPEADO por proyectil ".concat(other.userData.projectileType));
@@ -39604,16 +39372,15 @@ function checkCollisionsNow() {
       return;
     }
 
-    // CASO 3: ENEMIGO colisiona con LADRILLO MARRÓN (movable) - LÓGICA ORIGINAL
+    // ENEMIGO colisiona con LADRILLO MARRÓN
     if (enemies.includes(enemy) && type === "brick" && brickType === "movable" && enemy.userData.mass > 0) {
       // Verificar que el ladrillo se esté moviendo con suficiente velocidad
       if (enemy.userData.physicsBody) {
         var velocity = enemy.userData.physicsBody.getLinearVelocity();
         var speed = Math.sqrt(Math.pow(velocity.x(), 2) + Math.pow(velocity.y(), 2) + Math.pow(velocity.z(), 2));
 
-        // Aumentar el umbral de velocidad para mayor fiabilidad
+        // Umbral de velocidad
         if (speed > 2.0) {
-          // Cambiado de 1.0 a 2.0
           console.log("\u2705 ENEMIGO GOLPEADO por ladrillo marr\xF3n (velocidad: ".concat(speed.toFixed(2), ")"));
           removeEnemy(enemy);
 
@@ -39626,14 +39393,12 @@ function checkCollisionsNow() {
       }
       return;
     }
-
-    // NOTA: Si colisiona con ladrillo GRIS (immovable), NO hacemos nada
   });
 
-  // También verificar colisiones con el suelo
+  // Verificar colisiones con el suelo
   checkGroundCollisions();
 
-  // También verificar colisiones MANUALMENTE para mayor fiabilidad
+  // Verificar colisiones MANUALMENTE
   checkManualCollisions();
 
   // Limpiar objetos que hayan caído fuera del mapa
@@ -39646,8 +39411,6 @@ function checkGroundCollisions() {
     // Solo verificar bombas que no hayan explotado aún
     if (projectile.userData.projectileType === "bomb" && !projectile.userData.hasExploded && projectile.position.y < 0.5 // Más cerca del suelo
     ) {
-      console.log("\uD83D\uDCA3 BOMBA toc\xF3 el suelo en y=".concat(projectile.position.y.toFixed(2)));
-
       // Marcar que impactó
       projectile.userData.hasExploded = true;
 
@@ -39660,7 +39423,7 @@ function checkGroundCollisions() {
         projectile.userData.physicsBody.setAngularVelocity(new Ammo.btVector3(0, 0, 0));
       }
 
-      // Programar explosión en 1 segundo
+      // Explosión en 1 segundo
       setTimeout(function () {
         if (projectile.parent) {
           console.log("\uD83D\uDCA5 BOMBA explota en el suelo");
@@ -39675,7 +39438,6 @@ function checkGroundCollisions() {
   }
 }
 function checkManualCollisions() {
-  // Verificar colisiones manualmente para mayor fiabilidad
   for (var i = enemies.length - 1; i >= 0; i--) {
     var enemy = enemies[i];
 
@@ -39693,7 +39455,7 @@ function checkManualCollisions() {
         console.log("\u2705 COLISI\xD3N MANUAL detectada con proyectil - Distancia: ".concat(distance.toFixed(2)));
         removeEnemy(enemy);
         removeProjectile(projectile);
-        break; // Salir del bucle de proyectiles para este enemigo
+        break;
       }
     }
 
@@ -39704,8 +39466,7 @@ function checkManualCollisions() {
         var _distance = enemy.position.distanceTo(brick.position);
         var _enemyRadius = enemy.userData.collisionRadius || 0.5;
         var brickRadius = brick.userData.collisionRadius || 0.6;
-        var _collisionDistance = _enemyRadius + brickRadius + 0.3; // Margen adicional
-
+        var _collisionDistance = _enemyRadius + brickRadius + 0.3;
         if (_distance < _collisionDistance && brick.userData.physicsBody) {
           // Verificar velocidad del ladrillo
           var velocity = brick.userData.physicsBody.getLinearVelocity();
@@ -39725,7 +39486,7 @@ function checkManualCollisions() {
   }
 }
 function cleanupOutOfBounds() {
-  // Limpiar proyectiles - límites mucho más grandes por montañas lejanas
+  // Limpiar proyectiles
   for (var i = projectiles.length - 1; i >= 0; i--) {
     var projectile = projectiles[i];
     if (projectile.position.y < -50 || Math.abs(projectile.position.x) > 300 || Math.abs(projectile.position.z) > 300) {
@@ -39819,16 +39580,9 @@ function animate() {
     // Verificar colisiones
     checkCollisionsNow();
 
-    // IMPORTANTE: Actualizar cañón basado en input
+    // Actualizar cañón basado en input
     if (catapult) {
-      (0, _controls.updateCatapult)(catapult, deltaTime); // Esto ahora manejará las flechas
-
-      // Para debug: muestra valores actuales
-      if (catapult.userData) {
-        var elevDeg = (catapult.userData.currentElevation * 180 / Math.PI).toFixed(1);
-        var rotDeg = (catapult.userData.baseRotation * 180 / Math.PI).toFixed(1);
-        // console.log(`Cañón - Elev: ${elevDeg}°, Rot: ${rotDeg}°, Power: ${catapult.userData.power}`);
-      }
+      (0, _controls.updateCatapult)(catapult, deltaTime);
     }
 
     // Actualizar trayectoria
@@ -39836,17 +39590,10 @@ function animate() {
       updateTrajectory();
     }
 
-    // Si quieres una vista más desde el costado derecho:
-    // Actualizar cámara de cañón - ¡CAMBIOS AQUÍ!
-    // Actualizar cámara de cañón - ¡REVISADO!
+    // Actualizar cámara de cañón
     if (activeCamera === catapultCamera && catapult) {
       var _catapult$userData, _catapult$userData2, _catapult$userData3;
-      // ⭐⭐ NUEVO: La cámara debe estar DETRÁS del cañón (en el eje Z negativo)
-      // Cuando el cañón mira hacia el centro, la cámara debe estar detrás mirando hacia adelante
-
-      // Offset de la cámara: DETRÁS, ARRIBA y a la DERECHA del cañón
-      // Z positivo es adelante del cañón, así que para estar detrás usamos Z negativo
-      var offset = new THREE.Vector3(-5, 5, -10); // ⭐ CAMBIADO: de 10 a -10 (detrás)
+      var offset = new THREE.Vector3(-5, 5, -10);
 
       // Obtener rotación total del cañón
       var initialRotation = ((_catapult$userData = catapult.userData) === null || _catapult$userData === void 0 ? void 0 : _catapult$userData.initialRotation) || 0;
@@ -39859,14 +39606,11 @@ function animate() {
       // Obtener posición del cañón
       var cannonPosition = ((_catapult$userData3 = catapult.userData) === null || _catapult$userData3 === void 0 ? void 0 : _catapult$userData3.initialPosition) || catapult.position.clone();
 
-      // Posicionar cámara DETRÁS del cañón
+      // Posicionar cámara
       catapultCamera.position.copy(cannonPosition).add(offset);
 
-      // Hacer que la cámara mire hacia DONDE APUNTA EL CAÑÓN
-      // Calcular punto de mira: un poco adelante en la dirección que apunta el cañón
-
-      // Dirección que apunta el cañón (adelante en Z+ en coordenadas locales)
-      var lookDirection = new THREE.Vector3(0, 0, 15); // Más adelante para mejor vista
+      // Dirección que apunta el cañón
+      var lookDirection = new THREE.Vector3(0, 0, 15);
 
       // Aplicar rotación del cañón a la dirección de mira
       lookDirection.applyEuler(new THREE.Euler(0, totalRotation, 0));

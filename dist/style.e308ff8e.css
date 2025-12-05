@@ -4,11 +4,7 @@ html {
   padding: 0;
   overflow: hidden;
   font-family: "Arial", sans-serif;
-  background: linear-gradient(
-    to bottom,
-    #87ceeb,
-    #e0f7ff
-  ); /* Cielo más realista */
+  background: linear-gradient(to bottom, #87ceeb, #e0f7ff);
   color: white;
 }
 
@@ -73,7 +69,7 @@ html {
   backdrop-filter: blur(5px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   min-width: 200px;
-  display: none; /* Oculto por defecto */
+  display: none;
 }
 
 #hud-info p {
@@ -109,14 +105,14 @@ html {
 }
 
 #help-modal {
-  position: fixed; /* Cambiado de absolute a fixed */
+  position: fixed;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   background: rgba(0, 0, 0, 0.95);
   padding: 30px;
   border-radius: 15px;
-  display: none; /* Oculto por defecto */
+  display: none;
   z-index: 1000;
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -126,7 +122,7 @@ html {
 }
 
 #help-modal.show {
-  display: block; /* Mostrar cuando tenga clase show */
+  display: block;
   animation: fadeIn 0.3s ease-out;
 }
 
@@ -187,7 +183,6 @@ html {
   opacity: 0.9;
 }
 
-/* Eliminar la clase .hidden ya que no la necesitamos */
 .hidden {
   display: none !important;
 }
@@ -202,7 +197,7 @@ html {
   font-size: 1.2em;
   backdrop-filter: blur(5px);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  display: none; /* Oculto por defecto */
+  display: none;
 }
 
 .projectile-indicator {
@@ -214,7 +209,7 @@ html {
   border-radius: 10px;
   backdrop-filter: blur(5px);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  display: none; /* Oculto por defecto */
+  display: none;
 }
 
 .projectile-indicator span {
@@ -222,7 +217,6 @@ html {
   font-weight: bold;
 }
 
-/* Overlay para oscurecer el fondo cuando el modal está abierto */
 .modal-overlay {
   position: fixed;
   top: 0;
