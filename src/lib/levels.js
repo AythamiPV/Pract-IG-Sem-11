@@ -157,7 +157,7 @@ export const levels = [
       { pos: [-3.6, 3.9, -8] }, // Sobre muralla
       { pos: [0, 6.6, -8] }, // Sobre puente: 6.0 + 0.6 = 6.6
     ],
-    ammo: { rock: 10, bomb: 4 },
+    ammo: { rock: 8, bomb: 1 },
     description:
       "Castillo complejo con todas las piezas perfectamente apoyadas",
   },

@@ -4,8 +4,8 @@ export let angle = 45;
 export let power = 50;
 export let projectileType = "rock";
 export let inputEnabled = true;
-export const MAX_POWER = 200;
-export const MIN_POWER = 10;
+export const MAX_POWER = 100;
+export const MIN_POWER = 5;
 
 // Objeto global para el estado de las teclas
 export const keyStates = {
@@ -117,11 +117,11 @@ export function updateCatapult(catapult, deltaTime) {
   // ---- CONTROL DE ROTACIÓN (Flechas Izquierda/Derecha) ----
   // Reducida la sensibilidad de 0.04 a 0.02 (la mitad)
   if (keyStates.ArrowLeft) {
-    userData.baseRotation += 0.009 * deltaTime * 60;
+    userData.baseRotation += 0.007 * deltaTime * 60;
   }
 
   if (keyStates.ArrowRight) {
-    userData.baseRotation -= 0.009 * deltaTime * 60;
+    userData.baseRotation -= 0.007 * deltaTime * 60;
   }
 
   // ---- APLICAR LAS TRANSFORMACIONES VISUALES ----

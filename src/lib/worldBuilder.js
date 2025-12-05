@@ -489,9 +489,19 @@ export function createProjectile(type, position, velocity = null) {
   const projectile = new THREE.Mesh(geometry, material);
   projectile.position.copy(position);
   projectile.castShadow = true;
-  projectile.userData.type = "projectile";
-  projectile.userData.projectileType = type;
-  projectile.userData.isBomb = isBomb;
+
+  // ¡PROPIEDADES COMPLETAS PARA BOMBAS!
+  projectile.userData = {
+    type: "projectile",
+    projectileType: type,
+    isBomb: isBomb,
+    mass: isBomb ? 2.0 : 1.5,
+    hasExploded: false, // Control de estado
+    explosionTriggered: false, // Control de que ya se disparó explosión
+    collisionRadius: isBomb ? 0.45 : 0.4,
+    isDecorative: false,
+    brickType: undefined,
+  };
 
   if (Ammo) {
     const shape = new Ammo.btSphereShape(radius);

@@ -37345,20 +37345,17 @@ function createRigidBody(mesh, shape, mass, pos, quat) {
 }
 function getCollisionRadius(mesh, shape) {
   if (mesh.userData.type === "enemy") {
-    return 0.5;
+    return 0.6;
   } else if (mesh.userData.type === "projectile") {
-    return mesh.userData.projectileType === "bomb" ? 0.4 : 0.35;
+    return mesh.userData.projectileType === "bomb" ? 0.45 : 0.4;
   } else if (mesh.userData.type === "brick") {
-    // Para ladrillos, ajustar radio según orientación
     if (mesh.userData.isVertical) {
-      // Ladrillo vertical: 0.6 (ancho) x 1.2 (alto) x 0.6 (profundo)
-      return Math.sqrt(0.3 * 0.3 + 0.6 * 0.6 + 0.3 * 0.3);
+      return Math.sqrt(0.35 * 0.35 + 0.7 * 0.7 + 0.35 * 0.35);
     } else {
-      // Ladrillo horizontal: 1.2 (largo) x 0.6 (alto) x 0.6 (ancho)
-      return Math.sqrt(0.6 * 0.6 + 0.3 * 0.3 + 0.3 * 0.3);
+      return Math.sqrt(0.7 * 0.7 + 0.35 * 0.35 + 0.35 * 0.35);
     }
   }
-  return 0.5;
+  return 0.6;
 }
 function updatePhysics(deltaTime) {
   if (!physicsWorld || !Ammo) return;
@@ -37415,25 +37412,78 @@ function checkCollisions() {
   for (var i = 0; i < rigidBodies.length; i++) {
     var obj1 = rigidBodies[i];
 
-    // Solo verificar colisiones para enemigos
-    if (obj1.userData.type !== "enemy") continue;
-    for (var j = 0; j < rigidBodies.length; j++) {
-      if (i === j) continue;
-      var obj2 = rigidBodies[j];
+    // 1. Verificar colisiones para ENEMIGOS (lógica ORIGINAL)
+    if (obj1.userData.type === "enemy") {
+      for (var j = 0; j < rigidBodies.length; j++) {
+        if (i === j) continue;
+        var obj2 = rigidBodies[j];
 
-      // Verificar si obj2 es algo que puede interactuar con enemigos
-      if (obj2.userData.type === "projectile" || obj2.userData.type === "brick") {
-        var distance = obj1.position.distanceTo(obj2.position);
-        var collisionDistance = obj1.userData.collisionRadius + obj2.userData.collisionRadius;
-        if (distance < collisionDistance) {
+        // Verificar si obj2 es algo que puede interactuar con enemigos
+        // ¡MANTENER LA LÓGICA ORIGINAL!
+        if (obj2.userData.type === "projectile" || obj2.userData.type === "brick") {
+          // Calcular distancia real entre centros
+          var dx = obj1.position.x - obj2.position.x;
+          var dy = obj1.position.y - obj2.position.y;
+          var dz = obj1.position.z - obj2.position.z;
+          var distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+          // Usar radios de colisión más generosos
+          var obj1Radius = obj1.userData.collisionRadius || 0.6;
+          var obj2Radius = obj2.userData.collisionRadius || (obj2.userData.type === "projectile" ? obj2.userData.projectileType === "bomb" ? 0.45 : 0.4 : obj2.userData.brickType === "immovable" ? 0.7 : 0.65);
+          var collisionDistance = obj1Radius + obj2Radius;
+          if (distance < collisionDistance) {
+            collisions.push({
+              enemy: obj1,
+              other: obj2,
+              type: obj2.userData.type,
+              brickType: obj2.userData.brickType,
+              distance: distance
+            });
+          }
+        }
+      }
+    }
+
+    // 2. Verificar colisiones de BOMBAS con CUALQUIER COSA (NUEVA lógica)
+    if (obj1.userData.type === "projectile" && obj1.userData.projectileType === "bomb" && !obj1.userData.hasExploded // Solo si no ha explotado aún
+    ) {
+      for (var _j = 0; _j < rigidBodies.length; _j++) {
+        if (i === _j) continue;
+        var _obj = rigidBodies[_j];
+
+        // IGNORAR:
+        // - Otras bombas
+        // - Objetos decorativos
+        if (_obj.userData.type === "projectile" && _obj.userData.projectileType === "bomb" || _obj.userData.isDecorative) {
+          continue;
+        }
+
+        // Calcular distancia
+        var _dx = obj1.position.x - _obj.position.x;
+        var _dy = obj1.position.y - _obj.position.y;
+        var _dz = obj1.position.z - _obj.position.z;
+        var _distance = Math.sqrt(_dx * _dx + _dy * _dy + _dz * _dz);
+
+        // Usar radios de colisión
+        var _obj1Radius = obj1.userData.collisionRadius || 0.45;
+        var _obj2Radius = _obj.userData.collisionRadius || (_obj.userData.type === "enemy" ? 0.6 : _obj.userData.type === "brick" ? _obj.userData.brickType === "immovable" ? 0.7 : 0.65 : 0.5);
+        var _collisionDistance = _obj1Radius + _obj2Radius;
+        if (_distance < _collisionDistance) {
+          console.log("\uD83D\uDCA3 Bomba colision\xF3 con ".concat(_obj.userData.type || "objeto", " (distancia: ").concat(_distance.toFixed(2), ")"));
           collisions.push({
-            enemy: obj1,
-            other: obj2,
-            type: obj2.userData.type,
-            brickType: obj2.userData.brickType,
-            // Añadimos el tipo de ladrillo
-            distance: distance
+            enemy: _obj,
+            // El objeto con el que colisionó
+            other: obj1,
+            // La bomba
+            type: "projectile",
+            brickType: _obj.userData.brickType,
+            objectType: _obj.userData.type,
+            distance: _distance,
+            isBombCollision: true // Bandera para identificar que es colisión de bomba
           });
+
+          // Solo una colisión por bomba por frame
+          break;
         }
       }
     }
@@ -41683,9 +41733,21 @@ function createProjectile(type, position) {
   var projectile = new THREE.Mesh(geometry, material);
   projectile.position.copy(position);
   projectile.castShadow = true;
-  projectile.userData.type = "projectile";
-  projectile.userData.projectileType = type;
-  projectile.userData.isBomb = isBomb;
+
+  // ¡PROPIEDADES COMPLETAS PARA BOMBAS!
+  projectile.userData = {
+    type: "projectile",
+    projectileType: type,
+    isBomb: isBomb,
+    mass: isBomb ? 2.0 : 1.5,
+    hasExploded: false,
+    // Control de estado
+    explosionTriggered: false,
+    // Control de que ya se disparó explosión
+    collisionRadius: isBomb ? 0.45 : 0.4,
+    isDecorative: false,
+    brickType: undefined
+  };
   if (_physics.Ammo) {
     var shape = new _physics.Ammo.btSphereShape(radius);
     var mass = isBomb ? 0.8 : 1.2;
@@ -42349,8 +42411,8 @@ var levels = exports.levels = [{
   } // Sobre puente: 6.0 + 0.6 = 6.6
   ],
   ammo: {
-    rock: 10,
-    bomb: 4
+    rock: 8,
+    bomb: 1
   },
   description: "Castillo complejo con todas las piezas perfectamente apoyadas"
 }];
@@ -42374,8 +42436,8 @@ var angle = exports.angle = 45;
 var power = exports.power = 50;
 var projectileType = exports.projectileType = "rock";
 var inputEnabled = exports.inputEnabled = true;
-var MAX_POWER = exports.MAX_POWER = 200;
-var MIN_POWER = exports.MIN_POWER = 10;
+var MAX_POWER = exports.MAX_POWER = 100;
+var MIN_POWER = exports.MIN_POWER = 5;
 
 // Objeto global para el estado de las teclas
 var keyStates = exports.keyStates = {
@@ -42470,10 +42532,10 @@ function updateCatapult(catapult, deltaTime) {
   // ---- CONTROL DE ROTACIÓN (Flechas Izquierda/Derecha) ----
   // Reducida la sensibilidad de 0.04 a 0.02 (la mitad)
   if (keyStates.ArrowLeft) {
-    userData.baseRotation += 0.009 * deltaTime * 60;
+    userData.baseRotation += 0.007 * deltaTime * 60;
   }
   if (keyStates.ArrowRight) {
-    userData.baseRotation -= 0.009 * deltaTime * 60;
+    userData.baseRotation -= 0.007 * deltaTime * 60;
   }
 
   // ---- APLICAR LAS TRANSFORMACIONES VISUALES ----
@@ -43073,94 +43135,54 @@ function shootProjectile() {
   // Usar munición
   ammo[_controls.projectileType]--;
   ammoUsed[_controls.projectileType]++;
-
-  // ¡USAR LAS FUNCIONES DE CONTROLS.JS (no las específicas del cañón)!
   var startPos = (0, _controls.getProjectileStartPosition)(catapult);
   var velocity = (0, _controls.getLaunchVelocity)(catapult);
   var projectile = (0, _worldBuilder.createProjectile)(_controls.projectileType, startPos, velocity);
   scene.add(projectile);
   projectiles.push(projectile);
-  (0, _ui.updateHUD)(ammo, _controls.angle, _controls.power, _controls.projectileType);
 
-  // Si es bomba, programar explosión
+  // INICIALIZAR DATOS PARA BOMBAS - ¡IMPORTANTE!
   if (_controls.projectileType === "bomb") {
-    setTimeout(function () {
-      if (projectile.parent) {
-        handleBombExplosion(projectile);
-      }
-    }, 3000);
+    projectile.userData.hasExploded = false;
+    projectile.userData.collisionRadius = 0.45; // Radio de colisión específico para bombas
+    console.log("\uD83D\uDCA3 Bomba lanzada - ID: ".concat(projectile.id));
   }
-}
-
-// NUEVA FUNCIÓN para obtener posición de disparo del cañón
-function getCannonProjectileStartPosition(cannon) {
-  if (!cannon || !cannon.userData) {
-    return new THREE.Vector3(0, 1, -15);
-  }
-
-  // Si el cañón tiene una boca definida, calcular su posición mundial
-  if (cannon.userData.muzzle) {
-    var worldPosition = new THREE.Vector3();
-    cannon.userData.muzzle.getWorldPosition(worldPosition);
-    return worldPosition;
-  }
-
-  // Calcular posición basada en offset y rotaciones
-  var offset = cannon.userData.projectileStartOffset || new THREE.Vector3(1.3, 0.3, 0);
-
-  // Aplicar elevación al offset
-  var rotatedOffset = offset.clone();
-  if (cannon.userData.barrelGroup) {
-    var elevation = cannon.userData.currentElevation || 0;
-    rotatedOffset.applyEuler(new THREE.Euler(elevation, 0, 0));
-  }
-
-  // Aplicar rotación horizontal al offset
-  var horizontalRotation = cannon.userData.baseRotation || 0;
-  rotatedOffset.applyEuler(new THREE.Euler(0, horizontalRotation, 0));
-
-  // Obtener posición base del cañón
-  var basePosition = cannon.position.clone();
-  return basePosition.add(rotatedOffset);
-}
-
-// NUEVA FUNCIÓN para obtener velocidad de disparo del cañón
-function getCannonLaunchVelocity(cannon) {
-  if (!cannon || !cannon.userData) {
-    return new THREE.Vector3(0, 10, 0);
-  }
-  var power = cannon.userData.power || 50;
-
-  // Potencia base más velocidad para cañón
-  var baseVelocity = 18 + power / 100 * 25;
-
-  // Dirección inicial (adelante en el eje local del cañón)
-  var direction = new THREE.Vector3(0, 0, -1);
-
-  // Aplicar ELEVACIÓN (arriba/abajo) desde el barrelGroup
-  if (cannon.userData.barrelGroup) {
-    var elevation = cannon.userData.currentElevation || 0;
-    direction.applyEuler(new THREE.Euler(elevation, 0, 0));
-  }
-
-  // Aplicar ROTACIÓN HORIZONTAL (izquierda/derecha) desde el cañón completo
-  var horizontalRotation = cannon.userData.baseRotation || 0;
-  direction.applyEuler(new THREE.Euler(0, horizontalRotation, 0));
-
-  // Aplicar potencia
-  var velocity = direction.multiplyScalar(baseVelocity);
-  return velocity;
+  (0, _ui.updateHUD)(ammo, _controls.angle, _controls.power, _controls.projectileType);
 }
 function handleBombExplosion(projectile) {
-  // Crear explosión
-  var affectedEnemies = (0, _physics.createExplosion)(projectile.position, 5, 30);
+  // Verificar que la bomba no haya explotado ya
+  if (projectile.userData.hasExploded === true && projectile.userData.explosionTriggered) {
+    console.log("\u26A0\uFE0F Esta bomba ya explot\xF3, ignorando...");
+    return;
+  }
 
-  // Eliminar enemigos afectados por la explosión
+  // Marcar como explotada y que ya se disparó la explosión
+  projectile.userData.hasExploded = true;
+  projectile.userData.explosionTriggered = true;
+  console.log("\uD83D\uDCA5 EXPLOSI\xD3N de bomba en posici\xF3n:", projectile.position);
+
+  // Crear explosión con parámetros
+  var explosionRadius = 8;
+  var explosionForce = 40;
+  var affectedEnemies = (0, _physics.createExplosion)(projectile.position, explosionRadius, explosionForce);
+
+  // Eliminar enemigos afectados
   affectedEnemies.forEach(function (enemy) {
+    console.log("\uD83D\uDD25 Enemigo afectado por explosi\xF3n");
     removeEnemy(enemy);
   });
 
-  // Crear efecto visual de explosión
+  // También verificar enemigos cercanos manualmente
+  for (var i = enemies.length - 1; i >= 0; i--) {
+    var enemy = enemies[i];
+    var distance = enemy.position.distanceTo(projectile.position);
+    if (distance < explosionRadius * 0.7) {
+      console.log("\uD83D\uDD25 Enemigo en rango de explosi\xF3n (dist: ".concat(distance.toFixed(2), ")"));
+      removeEnemy(enemy);
+    }
+  }
+
+  // Crear efecto visual
   createExplosionEffect(projectile.position);
 
   // Eliminar proyectil
@@ -43309,50 +43331,181 @@ function checkCollisionsNow() {
 
   // Procesar colisiones detectadas
   collisions.forEach(function (collision) {
+    var _enemy$userData, _other$userData;
     var enemy = collision.enemy,
       other = collision.other,
-      type = collision.type;
+      type = collision.type,
+      brickType = collision.brickType,
+      isBombCollision = collision.isBombCollision;
 
     // Ignorar colisiones con objetos decorativos (montañas)
-    if (other.userData.isDecorative) {
-      return; // No hacer nada, las montañas son decorativas
+    if (enemy !== null && enemy !== void 0 && (_enemy$userData = enemy.userData) !== null && _enemy$userData !== void 0 && _enemy$userData.isDecorative || other !== null && other !== void 0 && (_other$userData = other.userData) !== null && _other$userData !== void 0 && _other$userData.isDecorative) {
+      return;
     }
 
-    // Si el enemigo colisiona con un proyectil
-    if (enemies.includes(enemy) && type === "projectile") {
-      console.log("Enemigo golpeado por proyectil");
-      removeEnemy(enemy);
-      removeProjectile(other);
+    // CASO 1: COLISIÓN DE BOMBA (nueva lógica)
+    if (isBombCollision) {
+      // Verificar que la bomba aún no haya explotado
+      if (!other.userData.hasExploded) {
+        var _enemy$userData2;
+        console.log("\uD83D\uDCA3 BOMBA impact\xF3 con ".concat((enemy === null || enemy === void 0 || (_enemy$userData2 = enemy.userData) === null || _enemy$userData2 === void 0 ? void 0 : _enemy$userData2.type) || "objeto"));
+
+        // Marcar que ya impactó
+        other.userData.hasExploded = true;
+
+        // Detener movimiento físico
+        if (other.userData.physicsBody) {
+          other.userData.physicsBody.setLinearVelocity(new Ammo.btVector3(0, 0, 0));
+          other.userData.physicsBody.setAngularVelocity(new Ammo.btVector3(0, 0, 0));
+        }
+
+        // Fijar posición si es suelo o está cerca del suelo
+        if (enemy.userData.type === "ground" || other.position.y < 0.5) {
+          other.position.y = 0.2;
+        }
+
+        // Programar explosión en 1 segundo
+        setTimeout(function () {
+          if (other.parent && other.userData.hasExploded !== false) {
+            console.log("\uD83D\uDCA5 BOMBA explota despu\xE9s de impacto");
+            handleBombExplosion(other);
+          }
+        }, 1000);
+        return; // Salir para no procesar más esta colisión
+      }
     }
 
-    // Si el enemigo colisiona con un ladrillo MARRÓN (movable)
-    if (enemies.includes(enemy) && type === "brick" && other.userData.brickType === "movable" && other.userData.mass > 0) {
+    // CASO 2: ENEMIGO colisiona con PROYECTIL (NO bomba) - LÓGICA ORIGINAL
+    if (enemies.includes(enemy) && type === "projectile" && other.userData.projectileType !== "bomb") {
+      if (projectiles.includes(other)) {
+        console.log("\u2705 ENEMIGO GOLPEADO por proyectil ".concat(other.userData.projectileType));
+        removeEnemy(enemy);
+        removeProjectile(other);
+      } else {
+        console.log("\u26A0\uFE0F Proyectil ya fue procesado");
+      }
+      return;
+    }
+
+    // CASO 3: ENEMIGO colisiona con LADRILLO MARRÓN (movable) - LÓGICA ORIGINAL
+    if (enemies.includes(enemy) && type === "brick" && brickType === "movable" && enemy.userData.mass > 0) {
       // Verificar que el ladrillo se esté moviendo con suficiente velocidad
-      if (other.userData.physicsBody) {
-        var velocity = other.userData.physicsBody.getLinearVelocity();
+      if (enemy.userData.physicsBody) {
+        var velocity = enemy.userData.physicsBody.getLinearVelocity();
         var speed = Math.sqrt(Math.pow(velocity.x(), 2) + Math.pow(velocity.y(), 2) + Math.pow(velocity.z(), 2));
 
-        // Solo eliminar enemigo si el ladrillo marrón se mueve rápido
-        if (speed > 1.0) {
-          console.log("Enemigo golpeado por ladrillo marr\xF3n (velocidad: ".concat(speed.toFixed(2), ")"));
+        // Aumentar el umbral de velocidad para mayor fiabilidad
+        if (speed > 2.0) {
+          // Cambiado de 1.0 a 2.0
+          console.log("\u2705 ENEMIGO GOLPEADO por ladrillo marr\xF3n (velocidad: ".concat(speed.toFixed(2), ")"));
           removeEnemy(enemy);
 
           // Aplicar fuerza de retroceso al ladrillo
           var impulse = new THREE.Vector3(Math.random() * 2 - 1, 2, Math.random() * 2 - 1).normalize().multiplyScalar(8);
-          other.userData.physicsBody.applyCentralImpulse(new Ammo.btVector3(impulse.x, impulse.y, impulse.z));
+          enemy.userData.physicsBody.applyCentralImpulse(new Ammo.btVector3(impulse.x, impulse.y, impulse.z));
         } else {
-          console.log("Ladrillo marr\xF3n toc\xF3 enemigo pero velocidad insuficiente (".concat(speed.toFixed(2), ")"));
-          // NO eliminar enemigo - solo física normal
+          console.log("\u26A0\uFE0F Ladrillo marr\xF3n velocidad insuficiente (".concat(speed.toFixed(2), ")"));
         }
       }
+      return;
     }
 
     // NOTA: Si colisiona con ladrillo GRIS (immovable), NO hacemos nada
-    // Los ladrillos grises no eliminan enemigos
   });
+
+  // También verificar colisiones con el suelo
+  checkGroundCollisions();
+
+  // También verificar colisiones MANUALMENTE para mayor fiabilidad
+  checkManualCollisions();
 
   // Limpiar objetos que hayan caído fuera del mapa
   cleanupOutOfBounds();
+}
+function checkGroundCollisions() {
+  var _loop = function _loop() {
+    var projectile = projectiles[i];
+
+    // Solo verificar bombas que no hayan explotado aún
+    if (projectile.userData.projectileType === "bomb" && !projectile.userData.hasExploded && projectile.position.y < 0.5 // Más cerca del suelo
+    ) {
+      console.log("\uD83D\uDCA3 BOMBA toc\xF3 el suelo en y=".concat(projectile.position.y.toFixed(2)));
+
+      // Marcar que impactó
+      projectile.userData.hasExploded = true;
+
+      // Fijar la bomba en el suelo
+      projectile.position.y = 0.2;
+
+      // Detener movimiento
+      if (projectile.userData.physicsBody) {
+        projectile.userData.physicsBody.setLinearVelocity(new Ammo.btVector3(0, 0, 0));
+        projectile.userData.physicsBody.setAngularVelocity(new Ammo.btVector3(0, 0, 0));
+      }
+
+      // Programar explosión en 1 segundo
+      setTimeout(function () {
+        if (projectile.parent) {
+          console.log("\uD83D\uDCA5 BOMBA explota en el suelo");
+          handleBombExplosion(projectile);
+        }
+      }, 1000);
+    }
+  };
+  // Verificar si las bombas han tocado el suelo
+  for (var i = projectiles.length - 1; i >= 0; i--) {
+    _loop();
+  }
+}
+function checkManualCollisions() {
+  // Verificar colisiones manualmente para mayor fiabilidad
+  for (var i = enemies.length - 1; i >= 0; i--) {
+    var enemy = enemies[i];
+
+    // Verificar colisiones con proyectiles
+    for (var j = projectiles.length - 1; j >= 0; j--) {
+      var projectile = projectiles[j];
+
+      // Calcular distancia real
+      var distance = enemy.position.distanceTo(projectile.position);
+      var enemyRadius = enemy.userData.collisionRadius || 0.5;
+      var projectileRadius = projectile.userData.collisionRadius || (projectile.userData.projectileType === "bomb" ? 0.4 : 0.35);
+      var collisionDistance = enemyRadius + projectileRadius + 0.2; // Margen adicional
+
+      if (distance < collisionDistance) {
+        console.log("\u2705 COLISI\xD3N MANUAL detectada con proyectil - Distancia: ".concat(distance.toFixed(2)));
+        removeEnemy(enemy);
+        removeProjectile(projectile);
+        break; // Salir del bucle de proyectiles para este enemigo
+      }
+    }
+
+    // Verificar colisiones con ladrillos marrones en movimiento
+    for (var _j = bricks.length - 1; _j >= 0; _j--) {
+      var brick = bricks[_j];
+      if (brick.userData.brickType === "movable" && brick.userData.mass > 0) {
+        var _distance = enemy.position.distanceTo(brick.position);
+        var _enemyRadius = enemy.userData.collisionRadius || 0.5;
+        var brickRadius = brick.userData.collisionRadius || 0.6;
+        var _collisionDistance = _enemyRadius + brickRadius + 0.3; // Margen adicional
+
+        if (_distance < _collisionDistance && brick.userData.physicsBody) {
+          // Verificar velocidad del ladrillo
+          var velocity = brick.userData.physicsBody.getLinearVelocity();
+          var speed = Math.sqrt(Math.pow(velocity.x(), 2) + Math.pow(velocity.y(), 2) + Math.pow(velocity.z(), 2));
+          if (speed > 2.0) {
+            console.log("\u2705 COLISI\xD3N MANUAL con ladrillo - Velocidad: ".concat(speed.toFixed(2)));
+            removeEnemy(enemy);
+
+            // Aplicar fuerza de retroceso
+            var impulse = new THREE.Vector3(Math.random() * 2 - 1, 2, Math.random() * 2 - 1).normalize().multiplyScalar(8);
+            brick.userData.physicsBody.applyCentralImpulse(new Ammo.btVector3(impulse.x, impulse.y, impulse.z));
+            break;
+          }
+        }
+      }
+    }
+  }
 }
 function cleanupOutOfBounds() {
   // Limpiar proyectiles - límites mucho más grandes por montañas lejanas

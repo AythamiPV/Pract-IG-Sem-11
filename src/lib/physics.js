@@ -153,20 +153,17 @@ export function createRigidBody(
 
 function getCollisionRadius(mesh, shape) {
   if (mesh.userData.type === "enemy") {
-    return 0.5;
+    return 0.6;
   } else if (mesh.userData.type === "projectile") {
-    return mesh.userData.projectileType === "bomb" ? 0.4 : 0.35;
+    return mesh.userData.projectileType === "bomb" ? 0.45 : 0.4;
   } else if (mesh.userData.type === "brick") {
-    // Para ladrillos, ajustar radio según orientación
     if (mesh.userData.isVertical) {
-      // Ladrillo vertical: 0.6 (ancho) x 1.2 (alto) x 0.6 (profundo)
-      return Math.sqrt(0.3 * 0.3 + 0.6 * 0.6 + 0.3 * 0.3);
+      return Math.sqrt(0.35 * 0.35 + 0.7 * 0.7 + 0.35 * 0.35);
     } else {
-      // Ladrillo horizontal: 1.2 (largo) x 0.6 (alto) x 0.6 (ancho)
-      return Math.sqrt(0.6 * 0.6 + 0.3 * 0.3 + 0.3 * 0.3);
+      return Math.sqrt(0.7 * 0.7 + 0.35 * 0.35 + 0.35 * 0.35);
     }
   }
-  return 0.5;
+  return 0.6;
 }
 
 export function updatePhysics(deltaTime) {
@@ -236,31 +233,113 @@ export function checkCollisions() {
   for (let i = 0; i < rigidBodies.length; i++) {
     const obj1 = rigidBodies[i];
 
-    // Solo verificar colisiones para enemigos
-    if (obj1.userData.type !== "enemy") continue;
+    // 1. Verificar colisiones para ENEMIGOS (lógica ORIGINAL)
+    if (obj1.userData.type === "enemy") {
+      for (let j = 0; j < rigidBodies.length; j++) {
+        if (i === j) continue;
 
-    for (let j = 0; j < rigidBodies.length; j++) {
-      if (i === j) continue;
+        const obj2 = rigidBodies[j];
 
-      const obj2 = rigidBodies[j];
+        // Verificar si obj2 es algo que puede interactuar con enemigos
+        // ¡MANTENER LA LÓGICA ORIGINAL!
+        if (
+          obj2.userData.type === "projectile" ||
+          obj2.userData.type === "brick"
+        ) {
+          // Calcular distancia real entre centros
+          const dx = obj1.position.x - obj2.position.x;
+          const dy = obj1.position.y - obj2.position.y;
+          const dz = obj1.position.z - obj2.position.z;
+          const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
-      // Verificar si obj2 es algo que puede interactuar con enemigos
-      if (
-        obj2.userData.type === "projectile" ||
-        obj2.userData.type === "brick"
-      ) {
-        const distance = obj1.position.distanceTo(obj2.position);
-        const collisionDistance =
-          obj1.userData.collisionRadius + obj2.userData.collisionRadius;
+          // Usar radios de colisión más generosos
+          const obj1Radius = obj1.userData.collisionRadius || 0.6;
+          const obj2Radius =
+            obj2.userData.collisionRadius ||
+            (obj2.userData.type === "projectile"
+              ? obj2.userData.projectileType === "bomb"
+                ? 0.45
+                : 0.4
+              : obj2.userData.brickType === "immovable"
+              ? 0.7
+              : 0.65);
+
+          const collisionDistance = obj1Radius + obj2Radius;
+
+          if (distance < collisionDistance) {
+            collisions.push({
+              enemy: obj1,
+              other: obj2,
+              type: obj2.userData.type,
+              brickType: obj2.userData.brickType,
+              distance: distance,
+            });
+          }
+        }
+      }
+    }
+
+    // 2. Verificar colisiones de BOMBAS con CUALQUIER COSA (NUEVA lógica)
+    if (
+      obj1.userData.type === "projectile" &&
+      obj1.userData.projectileType === "bomb" &&
+      !obj1.userData.hasExploded // Solo si no ha explotado aún
+    ) {
+      for (let j = 0; j < rigidBodies.length; j++) {
+        if (i === j) continue;
+
+        const obj2 = rigidBodies[j];
+
+        // IGNORAR:
+        // - Otras bombas
+        // - Objetos decorativos
+        if (
+          (obj2.userData.type === "projectile" &&
+            obj2.userData.projectileType === "bomb") ||
+          obj2.userData.isDecorative
+        ) {
+          continue;
+        }
+
+        // Calcular distancia
+        const dx = obj1.position.x - obj2.position.x;
+        const dy = obj1.position.y - obj2.position.y;
+        const dz = obj1.position.z - obj2.position.z;
+        const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+        // Usar radios de colisión
+        const obj1Radius = obj1.userData.collisionRadius || 0.45;
+        const obj2Radius =
+          obj2.userData.collisionRadius ||
+          (obj2.userData.type === "enemy"
+            ? 0.6
+            : obj2.userData.type === "brick"
+            ? obj2.userData.brickType === "immovable"
+              ? 0.7
+              : 0.65
+            : 0.5);
+
+        const collisionDistance = obj1Radius + obj2Radius;
 
         if (distance < collisionDistance) {
+          console.log(
+            `💣 Bomba colisionó con ${
+              obj2.userData.type || "objeto"
+            } (distancia: ${distance.toFixed(2)})`
+          );
+
           collisions.push({
-            enemy: obj1,
-            other: obj2,
-            type: obj2.userData.type,
-            brickType: obj2.userData.brickType, // Añadimos el tipo de ladrillo
+            enemy: obj2, // El objeto con el que colisionó
+            other: obj1, // La bomba
+            type: "projectile",
+            brickType: obj2.userData.brickType,
+            objectType: obj2.userData.type,
             distance: distance,
+            isBombCollision: true, // Bandera para identificar que es colisión de bomba
           });
+
+          // Solo una colisión por bomba por frame
+          break;
         }
       }
     }
