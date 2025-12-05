@@ -85,26 +85,27 @@ export function updateCatapult(catapult, deltaTime) {
 
   // ---- CONTROL DE POTENCIA (Teclas Q/A) ----
   if (keyStates.KeyQ) {
-    // Tecla Q - Aumentar potencia
-    userData.power += 1 * deltaTime * 60; // Incremento suave
-    userData.power = Math.min(userData.power, MAX_POWER); // Limitar a máximo
+    // Tecla Q - Aumentar potencia (MÁS LENTO)
+    userData.power += 1 * deltaTime * 60; // Reducido de 1.0 a 0.5
+    userData.power = Math.min(userData.power, MAX_POWER);
     console.log(`Q - Potencia aumentada: ${userData.power.toFixed(1)}`);
   }
 
   if (keyStates.KeyA) {
-    // Tecla A - Disminuir potencia
-    userData.power -= 1 * deltaTime * 60; // Decremento suave
-    userData.power = Math.max(userData.power, MIN_POWER); // Limitar a mínimo
+    // Tecla A - Disminuir potencia (MÁS LENTO)
+    userData.power -= 1 * deltaTime * 60; // Reducido de 1.0 a 0.5
+    userData.power = Math.max(userData.power, MIN_POWER);
     console.log(`A - Potencia disminuida: ${userData.power.toFixed(1)}`);
   }
 
   // ---- CONTROL DE ELEVACIÓN (Flechas Arriba/Abajo) ----
+  // Reducida la sensibilidad de 0.03 a 0.015 (la mitad)
   if (keyStates.ArrowUp) {
-    userData.currentElevation += 0.03 * deltaTime * 60;
+    userData.currentElevation += 0.0055 * deltaTime * 60;
   }
 
   if (keyStates.ArrowDown) {
-    userData.currentElevation -= 0.03 * deltaTime * 60;
+    userData.currentElevation -= 0.0055 * deltaTime * 60;
   }
 
   // Limitar elevación entre 10° y 80°
@@ -114,12 +115,13 @@ export function updateCatapult(catapult, deltaTime) {
   );
 
   // ---- CONTROL DE ROTACIÓN (Flechas Izquierda/Derecha) ----
+  // Reducida la sensibilidad de 0.04 a 0.02 (la mitad)
   if (keyStates.ArrowLeft) {
-    userData.baseRotation += 0.04 * deltaTime * 60;
+    userData.baseRotation += 0.009 * deltaTime * 60;
   }
 
   if (keyStates.ArrowRight) {
-    userData.baseRotation -= 0.04 * deltaTime * 60;
+    userData.baseRotation -= 0.009 * deltaTime * 60;
   }
 
   // ---- APLICAR LAS TRANSFORMACIONES VISUALES ----
@@ -134,7 +136,7 @@ export function updateCatapult(catapult, deltaTime) {
 
   // Actualizar variables globales para el HUD
   angle = (userData.currentElevation * 180) / Math.PI;
-  power = userData.power; // ¡IMPORTANTE! Actualizar la variable global de potencia
+  power = userData.power;
 }
 
 export function getLaunchDirection(catapult) {
@@ -173,7 +175,7 @@ export function getProjectileStartPosition(catapult) {
 
     // Fallback: calcular desde offset
     const offset =
-      userData.projectileStartOffset || new THREE.Vector3(1.05, 0, 0);
+      userData.projectileStartOffset || new THREE.Vector3(0, 0, 1.05);
     let rotatedOffset = offset.clone();
 
     // Aplicar elevación (NEGATIVA, igual que visualmente)
@@ -181,13 +183,21 @@ export function getProjectileStartPosition(catapult) {
       new THREE.Euler(-(userData.currentElevation || 0), 0, 0)
     );
 
-    // Aplicar rotación horizontal
+    // Aplicar rotación horizontal DEL USUARIO
     rotatedOffset.applyEuler(new THREE.Euler(0, userData.baseRotation || 0, 0));
 
-    // Aplicar rotación inicial del cañón (180°)
-    rotatedOffset.applyEuler(new THREE.Euler(0, Math.PI, 0));
+    // ¡ACTUALIZADO! Aplicar rotación INICIAL del cañón (hacia el centro desde la esquina)
+    // En lugar de Math.PI fijo, usar la rotación inicial calculada
+    const initialRotation = userData.initialRotation || Math.PI;
+    rotatedOffset.applyEuler(new THREE.Euler(0, initialRotation, 0));
 
-    return catapult.position.clone().add(rotatedOffset);
+    // ¡ACTUALIZADO! Usar la posición INICIAL del cañón (en la esquina)
+    const initialPosition =
+      userData.initialPosition ||
+      catapult.position ||
+      new THREE.Vector3(0, 0, -15);
+
+    return initialPosition.clone().add(rotatedOffset);
   }
 
   // Para catapulta (código original)

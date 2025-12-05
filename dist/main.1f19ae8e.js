@@ -41699,7 +41699,7 @@ function loadCatapultModel(_x2, _x3) {
 }
 function _loadCatapultModel() {
   _loadCatapultModel = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee(scene, physicsWorld) {
-    var cannonGroup, metalMaterial, woodMaterial, brassMaterial, wheelMaterial, baseWheelsGroup, carriageBaseGeometry, carriageBase, wheelGeometry, leftRearWheel, rightRearWheel, leftFrontWheel, rightFrontWheel, supportGeometry, leftSupport, rightSupport, cannonBarrelGroup, barrelGeometry, cannonBarrel, trunnionGeometry, leftTrunnion, rightTrunnion, muzzleGeometry, muzzle, breechGeometry, breech, breechCapGeometry, breechCap, ringGeometry, ring, muzzleWorldPosition, projectileStartOffset, transform, motionState, colShape, localInertia, rbInfo, body, _cannonConfig, cannonConfig, _t;
+    var cannonGroup, metalMaterial, woodMaterial, brassMaterial, wheelMaterial, baseWheelsGroup, carriageBaseGeometry, carriageBase, wheelGeometry, leftRearWheel, rightRearWheel, leftFrontWheel, rightFrontWheel, supportGeometry, leftSupport, rightSupport, cannonBarrelGroup, barrelGeometry, cannonBarrel, trunnionGeometry, leftTrunnion, rightTrunnion, muzzleGeometry, muzzle, breechGeometry, breech, breechCapGeometry, breechCap, ringGeometry, ring, cornerX, cornerY, cornerZ, angleToCenter, muzzleWorldPosition, projectileStartOffset, transform, motionState, colShape, localInertia, rbInfo, body, _cannonConfig, cannonConfig, _t;
     return _regenerator().w(function (_context) {
       while (1) switch (_context.p = _context.n) {
         case 0:
@@ -41823,14 +41823,26 @@ function _loadCatapultModel() {
 
           // -------------------- POSICIONAMIENTO FINAL --------------------
 
-          // Posicionar todo el cañón en el escenario
-          cannonGroup.position.set(0, 0, -15);
-          cannonGroup.rotation.y = 0; // Mirar hacia Z positivo
+          // ¡POSICIÓN EN ESQUINA! El ground es de 100x100, así que las esquinas están en ±50
+          // Pero dejamos un margen para que no esté justo en el borde
+          cornerX = -45; // Esquina izquierda (con margen de 5 unidades)
+          cornerY = 0; // En el suelo
+          cornerZ = -45; // Esquina inferior (con margen de 5 unidades)
+          // Posicionar TODO el cañón en la esquina
+          cannonGroup.position.set(cornerX, cornerY, cornerZ);
+
+          // Calcular el ángulo para mirar hacia el centro (0,0)
+          // atan2(centroZ - posiciónZ, centroX - posiciónX)
+          angleToCenter = Math.atan2(0 - cornerZ, 0 - cornerX);
+          cannonGroup.rotation.y = angleToCenter;
 
           // Añadir a la escena
           scene.add(cannonGroup);
-          console.log("Cañón pirata 3D creado exitosamente - Inclinación: 45°");
-          console.log("Base y ruedas rotadas 90°");
+          console.log("Cañón pirata 3D creado exitosamente");
+          console.log("Posición: esquina inferior izquierda");
+          console.log("Coordenadas:", cornerX, cornerY, cornerZ);
+          console.log("Rotación hacia centro:", (angleToCenter * 180 / Math.PI).toFixed(1) + "°");
+          console.log("Distancia al centro:", Math.sqrt(cornerX * cornerX + cornerZ * cornerZ).toFixed(1) + " unidades");
 
           // Calcular el punto de disparo
           scene.updateMatrixWorld(true);
@@ -41847,7 +41859,7 @@ function _loadCatapultModel() {
           }
           transform = new _physics.Ammo.btTransform();
           transform.setIdentity();
-          transform.setOrigin(new _physics.Ammo.btVector3(0, 0.5, -15));
+          transform.setOrigin(new _physics.Ammo.btVector3(cornerX, 0.5, cornerZ));
           motionState = new _physics.Ammo.btDefaultMotionState(transform);
           colShape = new _physics.Ammo.btBoxShape(new _physics.Ammo.btVector3(0.9, 0.4, 0.5));
           localInertia = new _physics.Ammo.btVector3(0, 0, 0);
@@ -41855,6 +41867,8 @@ function _loadCatapultModel() {
           rbInfo = new _physics.Ammo.btRigidBodyConstructionInfo(0, motionState, colShape, localInertia);
           body = new _physics.Ammo.btRigidBody(rbInfo);
           physicsWorld.addRigidBody(body);
+
+          // Configuración del cañón
           _cannonConfig = {
             group: cannonGroup,
             body: body,
@@ -41871,18 +41885,19 @@ function _loadCatapultModel() {
             minElevation: 10 * Math.PI / 180,
             // 10 grados mínimo
             currentElevation: 45 * Math.PI / 180,
-            // 45° inicial (en radianes)
+            // 45° inicial
             baseRotation: 0,
-            // Rotación horizontal inicial
             baseRotationSpeed: 0.03,
             maxBaseRotation: Infinity,
-            // ¡SIN LÍMITE! (puede girar 360° o más)
             isRotating: false,
             rotationDirection: 0,
             isBaseRotating: false,
             baseRotationDirection: 0,
             type: "pirate-cannon",
-            projectileStartOffset: projectileStartOffset
+            projectileStartOffset: projectileStartOffset,
+            // Propiedades de posición en esquina
+            initialPosition: new THREE.Vector3(cornerX, cornerY, cornerZ),
+            initialRotation: angleToCenter
           };
           return _context.a(2, _cannonConfig);
         case 2:
@@ -41897,22 +41912,20 @@ function _loadCatapultModel() {
             power: 30,
             rotationSpeed: 0.02,
             maxElevation: 80 * Math.PI / 180,
-            // 80 grados máximo
             minElevation: 10 * Math.PI / 180,
-            // 10 grados mínimo
             currentElevation: 45 * Math.PI / 180,
-            // 45° inicial (en radianes)
             baseRotation: 0,
-            // Rotación horizontal inicial
             baseRotationSpeed: 0.03,
             maxBaseRotation: Infinity,
-            // ¡SIN LÍMITE!
             isRotating: false,
             rotationDirection: 0,
             isBaseRotating: false,
             baseRotationDirection: 0,
             type: "pirate-cannon",
-            projectileStartOffset: projectileStartOffset
+            projectileStartOffset: projectileStartOffset,
+            // Propiedades de posición en esquina
+            initialPosition: new THREE.Vector3(cornerX, cornerY, cornerZ),
+            initialRotation: angleToCenter
           };
           return _context.a(2, cannonConfig);
         case 3:
@@ -42430,35 +42443,37 @@ function updateCatapult(catapult, deltaTime) {
 
   // ---- CONTROL DE POTENCIA (Teclas Q/A) ----
   if (keyStates.KeyQ) {
-    // Tecla Q - Aumentar potencia
-    userData.power += 1 * deltaTime * 60; // Incremento suave
-    userData.power = Math.min(userData.power, MAX_POWER); // Limitar a máximo
+    // Tecla Q - Aumentar potencia (MÁS LENTO)
+    userData.power += 1 * deltaTime * 60; // Reducido de 1.0 a 0.5
+    userData.power = Math.min(userData.power, MAX_POWER);
     console.log("Q - Potencia aumentada: ".concat(userData.power.toFixed(1)));
   }
   if (keyStates.KeyA) {
-    // Tecla A - Disminuir potencia
-    userData.power -= 1 * deltaTime * 60; // Decremento suave
-    userData.power = Math.max(userData.power, MIN_POWER); // Limitar a mínimo
+    // Tecla A - Disminuir potencia (MÁS LENTO)
+    userData.power -= 1 * deltaTime * 60; // Reducido de 1.0 a 0.5
+    userData.power = Math.max(userData.power, MIN_POWER);
     console.log("A - Potencia disminuida: ".concat(userData.power.toFixed(1)));
   }
 
   // ---- CONTROL DE ELEVACIÓN (Flechas Arriba/Abajo) ----
+  // Reducida la sensibilidad de 0.03 a 0.015 (la mitad)
   if (keyStates.ArrowUp) {
-    userData.currentElevation += 0.03 * deltaTime * 60;
+    userData.currentElevation += 0.0055 * deltaTime * 60;
   }
   if (keyStates.ArrowDown) {
-    userData.currentElevation -= 0.03 * deltaTime * 60;
+    userData.currentElevation -= 0.0055 * deltaTime * 60;
   }
 
   // Limitar elevación entre 10° y 80°
   userData.currentElevation = Math.max(userData.minElevation, Math.min(userData.maxElevation, userData.currentElevation));
 
   // ---- CONTROL DE ROTACIÓN (Flechas Izquierda/Derecha) ----
+  // Reducida la sensibilidad de 0.04 a 0.02 (la mitad)
   if (keyStates.ArrowLeft) {
-    userData.baseRotation += 0.04 * deltaTime * 60;
+    userData.baseRotation += 0.009 * deltaTime * 60;
   }
   if (keyStates.ArrowRight) {
-    userData.baseRotation -= 0.04 * deltaTime * 60;
+    userData.baseRotation -= 0.009 * deltaTime * 60;
   }
 
   // ---- APLICAR LAS TRANSFORMACIONES VISUALES ----
@@ -42473,7 +42488,7 @@ function updateCatapult(catapult, deltaTime) {
 
   // Actualizar variables globales para el HUD
   exports.angle = angle = userData.currentElevation * 180 / Math.PI;
-  exports.power = power = userData.power; // ¡IMPORTANTE! Actualizar la variable global de potencia
+  exports.power = power = userData.power;
 }
 function getLaunchDirection(catapult) {
   var angleRad = catapult.userData.angle * Math.PI / 180;
@@ -42505,18 +42520,23 @@ function getProjectileStartPosition(catapult) {
     }
 
     // Fallback: calcular desde offset
-    var offset = userData.projectileStartOffset || new THREE.Vector3(1.05, 0, 0);
+    var offset = userData.projectileStartOffset || new THREE.Vector3(0, 0, 1.05);
     var rotatedOffset = offset.clone();
 
     // Aplicar elevación (NEGATIVA, igual que visualmente)
     rotatedOffset.applyEuler(new THREE.Euler(-(userData.currentElevation || 0), 0, 0));
 
-    // Aplicar rotación horizontal
+    // Aplicar rotación horizontal DEL USUARIO
     rotatedOffset.applyEuler(new THREE.Euler(0, userData.baseRotation || 0, 0));
 
-    // Aplicar rotación inicial del cañón (180°)
-    rotatedOffset.applyEuler(new THREE.Euler(0, Math.PI, 0));
-    return catapult.position.clone().add(rotatedOffset);
+    // ¡ACTUALIZADO! Aplicar rotación INICIAL del cañón (hacia el centro desde la esquina)
+    // En lugar de Math.PI fijo, usar la rotación inicial calculada
+    var initialRotation = userData.initialRotation || Math.PI;
+    rotatedOffset.applyEuler(new THREE.Euler(0, initialRotation, 0));
+
+    // ¡ACTUALIZADO! Usar la posición INICIAL del cañón (en la esquina)
+    var initialPosition = userData.initialPosition || catapult.position || new THREE.Vector3(0, 0, -15);
+    return initialPosition.clone().add(rotatedOffset);
   }
 
   // Para catapulta (código original)
@@ -43446,15 +43466,33 @@ function animate() {
       updateTrajectory();
     }
 
-    // Actualizar cámara de cañón
+    // Si quieres una vista más desde el costado derecho:
+    // Actualizar cámara de cañón - ¡CAMBIOS AQUÍ!
     if (activeCamera === catapultCamera && catapult) {
-      var _catapult$userData;
-      var offset = new THREE.Vector3(-8, 5, 8); // Ajuste para cañón
+      var _catapult$userData, _catapult$userData2, _catapult$userData3;
+      // ¡NUEVO OFFSET! Detrás del cañón pero hacia la derecha
+      // Original: new THREE.Vector3(-8, 5, 8) (detrás-izquierda-arriba)
+      // Cambiado a: new THREE.Vector3(-5, 5, 10) (detrás-derecha-arriba)
+      var offset = new THREE.Vector3(-5, 5, 10); // Más a la derecha y más atrás
 
       // Aplicar rotación horizontal al offset de cámara
-      offset.applyEuler(new THREE.Euler(0, ((_catapult$userData = catapult.userData) === null || _catapult$userData === void 0 ? void 0 : _catapult$userData.baseRotation) || 0, 0));
-      catapultCamera.position.copy(catapult.position).add(offset);
-      catapultCamera.lookAt(catapult.position);
+      var initialRotation = ((_catapult$userData = catapult.userData) === null || _catapult$userData === void 0 ? void 0 : _catapult$userData.initialRotation) || Math.PI;
+      var baseRotation = ((_catapult$userData2 = catapult.userData) === null || _catapult$userData2 === void 0 ? void 0 : _catapult$userData2.baseRotation) || 0;
+      var totalRotation = initialRotation + baseRotation;
+      offset.applyEuler(new THREE.Euler(0, totalRotation, 0));
+
+      // Obtener posición inicial del cañón (en la esquina)
+      var initialPosition = ((_catapult$userData3 = catapult.userData) === null || _catapult$userData3 === void 0 ? void 0 : _catapult$userData3.initialPosition) || catapult.position;
+
+      // Posicionar cámara
+      catapultCamera.position.copy(initialPosition).add(offset);
+
+      // Hacer que la cámara mire hacia la boca del cañón (no exactamente al centro del cañón)
+      // Para ver mejor la trayectoria
+      var lookAtOffset = new THREE.Vector3(0, 0, 5); // Un poco más adelante del cañón
+      lookAtOffset.applyEuler(new THREE.Euler(0, totalRotation, 0));
+      var lookAtPoint = initialPosition.clone().add(lookAtOffset);
+      catapultCamera.lookAt(lookAtPoint);
     }
 
     // Actualizar HUD

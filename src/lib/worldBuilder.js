@@ -639,15 +639,34 @@ export async function loadCatapultModel(scene, physicsWorld) {
 
     // -------------------- POSICIONAMIENTO FINAL --------------------
 
-    // Posicionar todo el cañón en el escenario
-    cannonGroup.position.set(0, 0, -15);
-    cannonGroup.rotation.y = 0; // Mirar hacia Z positivo
+    // ¡POSICIÓN EN ESQUINA! El ground es de 100x100, así que las esquinas están en ±50
+    // Pero dejamos un margen para que no esté justo en el borde
+    const cornerX = -45; // Esquina izquierda (con margen de 5 unidades)
+    const cornerY = 0; // En el suelo
+    const cornerZ = -45; // Esquina inferior (con margen de 5 unidades)
+
+    // Posicionar TODO el cañón en la esquina
+    cannonGroup.position.set(cornerX, cornerY, cornerZ);
+
+    // Calcular el ángulo para mirar hacia el centro (0,0)
+    // atan2(centroZ - posiciónZ, centroX - posiciónX)
+    const angleToCenter = Math.atan2(0 - cornerZ, 0 - cornerX);
+    cannonGroup.rotation.y = angleToCenter;
 
     // Añadir a la escena
     scene.add(cannonGroup);
 
-    console.log("Cañón pirata 3D creado exitosamente - Inclinación: 45°");
-    console.log("Base y ruedas rotadas 90°");
+    console.log("Cañón pirata 3D creado exitosamente");
+    console.log("Posición: esquina inferior izquierda");
+    console.log("Coordenadas:", cornerX, cornerY, cornerZ);
+    console.log(
+      "Rotación hacia centro:",
+      ((angleToCenter * 180) / Math.PI).toFixed(1) + "°"
+    );
+    console.log(
+      "Distancia al centro:",
+      Math.sqrt(cornerX * cornerX + cornerZ * cornerZ).toFixed(1) + " unidades"
+    );
 
     // Calcular el punto de disparo
     scene.updateMatrixWorld(true);
@@ -663,7 +682,7 @@ export async function loadCatapultModel(scene, physicsWorld) {
     if (Ammo && physicsWorld) {
       const transform = new Ammo.btTransform();
       transform.setIdentity();
-      transform.setOrigin(new Ammo.btVector3(0, 0.5, -15));
+      transform.setOrigin(new Ammo.btVector3(cornerX, 0.5, cornerZ));
 
       const motionState = new Ammo.btDefaultMotionState(transform);
       const colShape = new Ammo.btBoxShape(new Ammo.btVector3(0.9, 0.4, 0.5));
@@ -680,6 +699,7 @@ export async function loadCatapultModel(scene, physicsWorld) {
 
       physicsWorld.addRigidBody(body);
 
+      // Configuración del cañón
       const cannonConfig = {
         group: cannonGroup,
         body: body,
@@ -694,16 +714,20 @@ export async function loadCatapultModel(scene, physicsWorld) {
         rotationSpeed: 0.02,
         maxElevation: (80 * Math.PI) / 180, // 80 grados máximo
         minElevation: (10 * Math.PI) / 180, // 10 grados mínimo
-        currentElevation: (45 * Math.PI) / 180, // 45° inicial (en radianes)
-        baseRotation: 0, // Rotación horizontal inicial
+        currentElevation: (45 * Math.PI) / 180, // 45° inicial
+        baseRotation: 0,
         baseRotationSpeed: 0.03,
-        maxBaseRotation: Infinity, // ¡SIN LÍMITE! (puede girar 360° o más)
+        maxBaseRotation: Infinity,
         isRotating: false,
         rotationDirection: 0,
         isBaseRotating: false,
         baseRotationDirection: 0,
         type: "pirate-cannon",
         projectileStartOffset: projectileStartOffset,
+
+        // Propiedades de posición en esquina
+        initialPosition: new THREE.Vector3(cornerX, cornerY, cornerZ),
+        initialRotation: angleToCenter,
       };
 
       return cannonConfig;
@@ -719,18 +743,22 @@ export async function loadCatapultModel(scene, physicsWorld) {
       angle: 45,
       power: 30,
       rotationSpeed: 0.02,
-      maxElevation: (80 * Math.PI) / 180, // 80 grados máximo
-      minElevation: (10 * Math.PI) / 180, // 10 grados mínimo
-      currentElevation: (45 * Math.PI) / 180, // 45° inicial (en radianes)
-      baseRotation: 0, // Rotación horizontal inicial
+      maxElevation: (80 * Math.PI) / 180,
+      minElevation: (10 * Math.PI) / 180,
+      currentElevation: (45 * Math.PI) / 180,
+      baseRotation: 0,
       baseRotationSpeed: 0.03,
-      maxBaseRotation: Infinity, // ¡SIN LÍMITE!
+      maxBaseRotation: Infinity,
       isRotating: false,
       rotationDirection: 0,
       isBaseRotating: false,
       baseRotationDirection: 0,
       type: "pirate-cannon",
       projectileStartOffset: projectileStartOffset,
+
+      // Propiedades de posición en esquina
+      initialPosition: new THREE.Vector3(cornerX, cornerY, cornerZ),
+      initialRotation: angleToCenter,
     };
 
     return cannonConfig;
