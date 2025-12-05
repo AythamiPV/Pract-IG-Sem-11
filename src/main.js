@@ -8,13 +8,14 @@ import {
   getRigidBodies,
   checkCollisions,
   stabilizeObjects,
+  getPhysicsWorld,
 } from "./lib/physics.js";
 import {
   createGround,
   createBrick,
   createEnemy,
   createProjectile,
-  createCatapult,
+  loadCatapultModel,
 } from "./lib/worldBuilder.js";
 import { levels } from "./lib/levels.js";
 import {
@@ -38,6 +39,7 @@ import {
   showGameOver,
 } from "./lib/ui.js";
 
+// Al principio de main.js, con las otras variables:
 let scene, renderer, orbitControls;
 let currentLevel = 0;
 let ammo = { rock: 0, bomb: 0 };
@@ -47,6 +49,7 @@ let catapultCamera, orbitCamera, activeCamera;
 let isGameRunning = false;
 let levelStartTime = 0;
 let catapult = null;
+let catapultConfig = null; // <-- AÑADE ESTA LÍNEA
 let trajectoryLine = null;
 let enemies = [];
 let projectiles = [];
@@ -172,7 +175,7 @@ function toggleCamera() {
   }
 }
 
-function startLevel() {
+async function startLevel() {
   console.log(
     `Cargando nivel ${currentLevel + 1}: ${levels[currentLevel].difficulty}`
   );
@@ -200,14 +203,39 @@ function startLevel() {
   // Crear terreno
   createGround(scene);
 
+  // OBTENER EL PHYSICS WORLD
+  const physicsWorld = getPhysicsWorld();
+
+  if (!physicsWorld) {
+    console.error(
+      "ERROR: physicsWorld no está inicializado. ¿Has llamado a initPhysics()?"
+    );
+    return;
+  }
+
   // Crear catapulta DETALLADA
-  catapult = createCatapult(new THREE.Vector3(-25, 0.5, 0));
-  scene.add(catapult);
+  catapultConfig = await loadCatapultModel(scene, physicsWorld);
+
+  if (!catapultConfig) {
+    console.error("ERROR: No se pudo crear la catapulta");
+    return;
+  }
+
+  // Obtener el objeto 3D de la catapulta
+  catapult = catapultConfig.group;
+
+  // Verificar que la catapulta se haya creado correctamente
+  if (!catapult) {
+    console.error("ERROR: No se pudo obtener el grupo de la catapulta");
+    return;
+  }
 
   // Inicializar valores de catapulta
+  catapult.userData = catapult.userData || {};
   catapult.userData.angle = 45;
   catapult.userData.power = 50;
   catapult.userData.baseRotation = 0;
+  catapult.userData.cup = catapultConfig.cup; // Guardar referencia a la copa
 
   // Cargar nivel
   const level = levels[currentLevel];
@@ -247,11 +275,7 @@ function startLevel() {
     // Información sobre la catapulta
     setTimeout(() => {
       if (isGameRunning) {
-        const catapultType = catapult.userData.isDetailed
-          ? "Detallada"
-          : catapult.userData.isSimple
-          ? "Simple"
-          : "3D";
+        const catapultType = catapultConfig.type || "Desconocida";
         console.log(
           `Catapulta ${catapultType} cargada. Potencia máxima: ${MAX_POWER}`
         );
@@ -284,9 +308,9 @@ function shootProjectile() {
   ammo[projectileType]--;
   ammoUsed[projectileType]++;
 
-  // Crear proyectil
-  const startPos = getProjectileStartPosition(catapult);
-  const velocity = getLaunchVelocity(catapult);
+  // Obtener la posición de inicio del proyectil DESDE EL CAÑÓN
+  const startPos = getCannonProjectileStartPosition(catapult);
+  const velocity = getCannonLaunchVelocity(catapult);
 
   const projectile = createProjectile(projectileType, startPos, velocity);
   scene.add(projectile);
@@ -302,6 +326,70 @@ function shootProjectile() {
       }
     }, 3000);
   }
+}
+
+// NUEVA FUNCIÓN para obtener posición de disparo del cañón
+function getCannonProjectileStartPosition(cannon) {
+  if (!cannon || !cannon.userData) {
+    return new THREE.Vector3(0, 1, -15);
+  }
+
+  // Si el cañón tiene una boca definida, calcular su posición mundial
+  if (cannon.userData.muzzle) {
+    const worldPosition = new THREE.Vector3();
+    cannon.userData.muzzle.getWorldPosition(worldPosition);
+    return worldPosition;
+  }
+
+  // Calcular posición basada en offset y rotaciones
+  const offset =
+    cannon.userData.projectileStartOffset || new THREE.Vector3(1.3, 0.3, 0);
+
+  // Aplicar elevación al offset
+  let rotatedOffset = offset.clone();
+  if (cannon.userData.barrelGroup) {
+    const elevation = cannon.userData.currentElevation || 0;
+    rotatedOffset.applyEuler(new THREE.Euler(elevation, 0, 0));
+  }
+
+  // Aplicar rotación horizontal al offset
+  const horizontalRotation = cannon.userData.baseRotation || 0;
+  rotatedOffset.applyEuler(new THREE.Euler(0, horizontalRotation, 0));
+
+  // Obtener posición base del cañón
+  const basePosition = cannon.position.clone();
+
+  return basePosition.add(rotatedOffset);
+}
+
+// NUEVA FUNCIÓN para obtener velocidad de disparo del cañón
+function getCannonLaunchVelocity(cannon) {
+  if (!cannon || !cannon.userData) {
+    return new THREE.Vector3(0, 10, 0);
+  }
+
+  const power = cannon.userData.power || 50;
+
+  // Potencia base más velocidad para cañón
+  const baseVelocity = 18 + (power / 100) * 25;
+
+  // Dirección inicial (adelante en el eje local del cañón)
+  const direction = new THREE.Vector3(0, 0, -1);
+
+  // Aplicar ELEVACIÓN (arriba/abajo) desde el barrelGroup
+  if (cannon.userData.barrelGroup) {
+    const elevation = cannon.userData.currentElevation || 0;
+    direction.applyEuler(new THREE.Euler(elevation, 0, 0));
+  }
+
+  // Aplicar ROTACIÓN HORIZONTAL (izquierda/derecha) desde el cañón completo
+  const horizontalRotation = cannon.userData.baseRotation || 0;
+  direction.applyEuler(new THREE.Euler(0, horizontalRotation, 0));
+
+  // Aplicar potencia
+  const velocity = direction.multiplyScalar(baseVelocity);
+
+  return velocity;
 }
 
 function handleBombExplosion(projectile) {
@@ -436,25 +524,38 @@ function removeBrick(brick) {
 function updateTrajectory() {
   if (!catapult || !trajectoryLine || activeCamera !== catapultCamera) return;
 
-  const startPos = getProjectileStartPosition(catapult);
-  const velocity = getLaunchVelocity(catapult);
+  // Usar las funciones específicas del cañón
+  const startPos = getCannonProjectileStartPosition(catapult);
+  const velocity = getCannonLaunchVelocity(catapult);
+
   const points = [];
   const gravity = 9.8;
   const timeStep = 0.1;
-  const maxTime = 6; // Aumentado de 4 a 6 para mayor alcance
+  const maxTime = 5; // Tiempo más corto para trayectoria de cañón
 
+  // Calcular puntos de la trayectoria
   for (let t = 0; t <= maxTime; t += timeStep) {
     const x = startPos.x + velocity.x * t;
     const y = startPos.y + velocity.y * t - 0.5 * gravity * t * t;
     const z = startPos.z + velocity.z * t;
 
+    // Detener si golpea el suelo
     if (y < 0) break;
 
     points.push(new THREE.Vector3(x, y, z));
   }
 
-  trajectoryLine.geometry.setFromPoints(points);
-  trajectoryLine.computeLineDistances();
+  // Actualizar geometría de la línea
+  if (points.length > 0) {
+    if (trajectoryLine.geometry) {
+      trajectoryLine.geometry.dispose();
+    }
+    trajectoryLine.geometry = new THREE.BufferGeometry().setFromPoints(points);
+    trajectoryLine.computeLineDistances();
+    trajectoryLine.visible = true;
+  } else {
+    trajectoryLine.visible = false;
+  }
 }
 
 function checkCollisionsNow() {
@@ -605,9 +706,9 @@ function animate() {
     // Verificar colisiones
     checkCollisionsNow();
 
-    // Actualizar catapulta
+    // Actualizar cañón (esto aplicará las animaciones)
     if (catapult) {
-      updateCatapult(catapult, deltaTime);
+      updateCatapult(catapult, deltaTime); // Asegúrate de llamar esto
 
       // Actualizar trayectoria
       if (activeCamera === catapultCamera) {
@@ -615,10 +716,14 @@ function animate() {
       }
     }
 
-    // Actualizar cámara de catapulta
+    // Actualizar cámara de cañón
     if (activeCamera === catapultCamera && catapult) {
-      const offset = new THREE.Vector3(-10, 6, 10);
-      offset.applyEuler(new THREE.Euler(0, catapult.rotation.y, 0));
+      const offset = new THREE.Vector3(-8, 5, 8); // Ajuste para cañón
+
+      // Aplicar rotación horizontal al offset de cámara
+      offset.applyEuler(
+        new THREE.Euler(0, catapult.userData?.baseRotation || 0, 0)
+      );
 
       catapultCamera.position.copy(catapult.position).add(offset);
       catapultCamera.lookAt(catapult.position);

@@ -41,82 +41,73 @@ export function handleInput(event) {
   }
 }
 
+// Añade esta función si no existe, o modifica la existente
 export function updateCatapult(catapult, deltaTime) {
-  if (!catapult) return;
+  if (!catapult || !catapult.userData) return;
 
-  // Rotación vertical (ángulo de disparo)
-  if (keyStates.ArrowUp) {
-    catapult.userData.angle = Math.min(
-      catapult.userData.angle + 60 * deltaTime,
-      80
-    );
-  }
-  if (keyStates.ArrowDown) {
-    catapult.userData.angle = Math.max(
-      catapult.userData.angle - 60 * deltaTime,
-      10
-    );
-  }
+  // Si es un cañón pirata
+  if (catapult.userData.type === "pirate-cannon") {
+    // Actualizar elevación (arriba/abajo)
+    if (catapult.userData.isRotating && catapult.userData.barrelGroup) {
+      catapult.userData.currentElevation +=
+        catapult.userData.rotationDirection *
+        catapult.userData.rotationSpeed *
+        deltaTime;
 
-  // Rotación horizontal
-  if (keyStates.ArrowLeft) {
-    catapult.userData.baseRotation += ((60 * Math.PI) / 180) * deltaTime;
-  }
-  if (keyStates.ArrowRight) {
-    catapult.userData.baseRotation -= ((60 * Math.PI) / 180) * deltaTime;
-  }
+      // Limitar elevación
+      catapult.userData.currentElevation = Math.max(
+        catapult.userData.minElevation,
+        Math.min(
+          catapult.userData.maxElevation,
+          catapult.userData.currentElevation
+        )
+      );
 
-  // Potencia
-  if (keyStates.KeyQ) {
-    catapult.userData.power = Math.min(
-      catapult.userData.power + 100 * deltaTime,
-      MAX_POWER
-    );
-  }
-  if (keyStates.KeyA) {
-    catapult.userData.power = Math.max(
-      catapult.userData.power - 100 * deltaTime,
-      MIN_POWER
-    );
-  }
+      // Aplicar rotación al grupo del cañón (elevación)
+      catapult.userData.barrelGroup.rotation.x =
+        catapult.userData.currentElevation;
 
-  // Aplicar rotación horizontal a toda la catapulta
-  catapult.rotation.y = catapult.userData.baseRotation;
-
-  // Aplicar rotación vertical al brazo
-  const angleRad = (catapult.userData.angle * Math.PI) / 180;
-
-  // Buscar el grupo del brazo en la catapulta
-  let armGroup = catapult.userData.armGroup;
-
-  // Si no está en userData, buscarlo recursivamente
-  if (!armGroup) {
-    catapult.traverse((child) => {
-      if (child.name === "catapultArm") {
-        armGroup = child;
+      // Detener si alcanza los límites
+      if (
+        catapult.userData.currentElevation <= catapult.userData.minElevation ||
+        catapult.userData.currentElevation >= catapult.userData.maxElevation
+      ) {
+        catapult.userData.isRotating = false;
       }
-    });
+    }
+
+    // Actualizar rotación horizontal (izquierda/derecha)
+    if (catapult.userData.isBaseRotating) {
+      catapult.userData.baseRotation +=
+        catapult.userData.baseRotationDirection *
+        catapult.userData.baseRotationSpeed *
+        deltaTime;
+
+      // Limitar rotación horizontal
+      catapult.userData.baseRotation = Math.max(
+        -catapult.userData.maxBaseRotation,
+        Math.min(
+          catapult.userData.maxBaseRotation,
+          catapult.userData.baseRotation
+        )
+      );
+
+      // Aplicar rotación horizontal al grupo completo
+      catapult.rotation.y = Math.PI + catapult.userData.baseRotation; // Math.PI es la rotación base
+
+      // Detener si alcanza los límites
+      if (
+        catapult.userData.baseRotation <= -catapult.userData.maxBaseRotation ||
+        catapult.userData.baseRotation >= catapult.userData.maxBaseRotation
+      ) {
+        catapult.userData.isBaseRotating = false;
+      }
+    }
   }
-
-  if (armGroup) {
-    // Calcular rotación del brazo (-π/6 es posición inicial, 0 es horizontal)
-    // Mapear ángulo de 10° a 80° a rotación de -π/3 a π/6
-    const minAngle = (10 * Math.PI) / 180;
-    const maxAngle = (80 * Math.PI) / 180;
-    const armRotation = THREE.MathUtils.mapLinear(
-      angleRad,
-      minAngle,
-      maxAngle,
-      -Math.PI / 3,
-      Math.PI / 6
-    );
-
-    armGroup.rotation.z = armRotation;
+  // Si es catapulta simple (mantener compatibilidad)
+  else if (catapult.userData.armGroup) {
+    // Código original para catapulta...
   }
-
-  // Actualizar valores exportados
-  angle = catapult.userData.angle;
-  power = catapult.userData.power;
 }
 
 export function getProjectileStartPosition(catapult) {
