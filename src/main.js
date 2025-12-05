@@ -213,7 +213,6 @@ async function startLevel() {
     return;
   }
 
-  // Crear catapulta DETALLADA
   catapultConfig = await loadCatapultModel(scene, physicsWorld);
 
   if (!catapultConfig) {
@@ -224,18 +223,16 @@ async function startLevel() {
   // Obtener el objeto 3D de la catapulta
   catapult = catapultConfig.group;
 
-  // Verificar que la catapulta se haya creado correctamente
-  if (!catapult) {
-    console.error("ERROR: No se pudo obtener el grupo de la catapulta");
-    return;
-  }
-
-  // Inicializar valores de catapulta
-  catapult.userData = catapult.userData || {};
-  catapult.userData.angle = 45;
-  catapult.userData.power = 50;
-  catapult.userData.baseRotation = 0;
-  catapult.userData.cup = catapultConfig.cup; // Guardar referencia a la copa
+  // ¡IMPORTANTE! Copiar TODAS las propiedades de catapultConfig a userData
+  catapult.userData = {
+    ...catapult.userData,
+    ...catapultConfig, // Esto copia todas las propiedades: barrelGroup, muzzle, etc.
+    type: catapultConfig.type || "pirate-cannon", // Asegurar que tiene type
+    angle: 45,
+    power: 30,
+    baseRotation: 0,
+    currentElevation: Math.PI / 4, // 45° inicial
+  };
 
   // Cargar nivel
   const level = levels[currentLevel];
@@ -308,9 +305,9 @@ function shootProjectile() {
   ammo[projectileType]--;
   ammoUsed[projectileType]++;
 
-  // Obtener la posición de inicio del proyectil DESDE EL CAÑÓN
-  const startPos = getCannonProjectileStartPosition(catapult);
-  const velocity = getCannonLaunchVelocity(catapult);
+  // ¡USAR LAS FUNCIONES DE CONTROLS.JS (no las específicas del cañón)!
+  const startPos = getProjectileStartPosition(catapult);
+  const velocity = getLaunchVelocity(catapult);
 
   const projectile = createProjectile(projectileType, startPos, velocity);
   scene.add(projectile);
@@ -524,23 +521,34 @@ function removeBrick(brick) {
 function updateTrajectory() {
   if (!catapult || !trajectoryLine || activeCamera !== catapultCamera) return;
 
-  // Usar las funciones específicas del cañón
-  const startPos = getCannonProjectileStartPosition(catapult);
-  const velocity = getCannonLaunchVelocity(catapult);
+  // ¡USAR LAS MISMAS FUNCIONES QUE SHOOTPROJECTILE!
+  const startPos = getProjectileStartPosition(catapult);
+  const velocity = getLaunchVelocity(catapult);
+
+  // ¡IMPORTANTE! La física multiplica la velocidad por 1.2 (ver physics.js línea 104)
+  // Para que la trayectoria calculada coincida con la real, debemos hacer lo mismo.
+  const physicsBoostFactor = 1.2;
+  const boostedVelocity = velocity.clone().multiplyScalar(physicsBoostFactor);
 
   const points = [];
-  const gravity = 9.8;
+  const gravity = 9.8; // Usar 9.8 para que coincida con la física (physics.js línea 68)
   const timeStep = 0.1;
-  const maxTime = 5; // Tiempo más corto para trayectoria de cañón
+  const maxTime = 8;
 
-  // Calcular puntos de la trayectoria
+  // Calcular puntos de la trayectoria con la velocidad boosteada
   for (let t = 0; t <= maxTime; t += timeStep) {
-    const x = startPos.x + velocity.x * t;
-    const y = startPos.y + velocity.y * t - 0.5 * gravity * t * t;
-    const z = startPos.z + velocity.z * t;
+    const x = startPos.x + boostedVelocity.x * t;
+    const y = startPos.y + boostedVelocity.y * t - 0.5 * gravity * t * t;
+    const z = startPos.z + boostedVelocity.z * t;
 
     // Detener si golpea el suelo
-    if (y < 0) break;
+    if (y < 0) {
+      const groundTime = t;
+      const groundX = startPos.x + boostedVelocity.x * groundTime;
+      const groundZ = startPos.z + boostedVelocity.z * groundTime;
+      points.push(new THREE.Vector3(groundX, 0, groundZ));
+      break;
+    }
 
     points.push(new THREE.Vector3(x, y, z));
   }
@@ -706,14 +714,27 @@ function animate() {
     // Verificar colisiones
     checkCollisionsNow();
 
-    // Actualizar cañón (esto aplicará las animaciones)
+    // IMPORTANTE: Actualizar cañón basado en input
     if (catapult) {
-      updateCatapult(catapult, deltaTime); // Asegúrate de llamar esto
+      updateCatapult(catapult, deltaTime); // Esto ahora manejará las flechas
 
-      // Actualizar trayectoria
-      if (activeCamera === catapultCamera) {
-        updateTrajectory();
+      // Para debug: muestra valores actuales
+      if (catapult.userData) {
+        const elevDeg = (
+          (catapult.userData.currentElevation * 180) /
+          Math.PI
+        ).toFixed(1);
+        const rotDeg = (
+          (catapult.userData.baseRotation * 180) /
+          Math.PI
+        ).toFixed(1);
+        // console.log(`Cañón - Elev: ${elevDeg}°, Rot: ${rotDeg}°, Power: ${catapult.userData.power}`);
       }
+    }
+
+    // Actualizar trayectoria
+    if (activeCamera === catapultCamera) {
+      updateTrajectory();
     }
 
     // Actualizar cámara de cañón

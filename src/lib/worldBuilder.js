@@ -512,173 +512,161 @@ export async function loadCatapultModel(scene, physicsWorld) {
     const cannonGroup = new THREE.Group();
     cannonGroup.name = "pirateCannon";
 
-    // Materiales simples pero efectivos
+    // Materiales
     const metalMaterial = new THREE.MeshLambertMaterial({
-      color: 0x666666, // Gris metálico
+      color: 0x666666,
     });
 
     const woodMaterial = new THREE.MeshLambertMaterial({
-      color: 0x8b4513, // Madera marrón
+      color: 0x8b4513,
     });
 
     const brassMaterial = new THREE.MeshLambertMaterial({
-      color: 0xd4a017, // Latón dorado
+      color: 0xd4a017,
     });
 
     const wheelMaterial = new THREE.MeshLambertMaterial({
-      color: 0x333333, // Ruedas oscuras
+      color: 0x333333,
     });
 
-    // -------------------- CARRETA SIMPLIFICADA --------------------
+    // -------------------- CARRETA CON ROTACIÓN 90° --------------------
 
-    // Base de la carreta (más pequeña y mejor posicionada)
-    const carriageBaseGeometry = new THREE.BoxGeometry(2.5, 0.4, 1.2);
+    // Crear un grupo para la base y ruedas
+    const baseWheelsGroup = new THREE.Group();
+    baseWheelsGroup.name = "baseWheels";
+    // ¡ROTAR LA BASE Y RUEDAS 90°!
+    baseWheelsGroup.rotation.y = Math.PI / 2; // 90° a la derecha
+    cannonGroup.add(baseWheelsGroup);
+
+    // Base de la carreta
+    const carriageBaseGeometry = new THREE.BoxGeometry(1.8, 0.3, 1.0);
     const carriageBase = new THREE.Mesh(carriageBaseGeometry, woodMaterial);
-    carriageBase.position.set(0, 0.2, 0);
-    cannonGroup.add(carriageBase);
+    carriageBase.position.set(0, 0.35, 0);
+    baseWheelsGroup.add(carriageBase);
 
-    // Ruedas traseras (más grandes)
-    const rearWheelGeometry = new THREE.CylinderGeometry(0.6, 0.6, 0.25, 12);
+    // RUEDAS
+    const wheelGeometry = new THREE.CylinderGeometry(0.35, 0.35, 0.2, 12);
 
-    const leftRearWheel = new THREE.Mesh(rearWheelGeometry, wheelMaterial);
-    leftRearWheel.position.set(-1.0, 0.6, 0.6);
-    leftRearWheel.rotation.z = Math.PI / 2;
-    cannonGroup.add(leftRearWheel);
+    // Ruedas traseras
+    const leftRearWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+    leftRearWheel.position.set(-0.7, 0.35, 0.5);
+    leftRearWheel.rotation.x = Math.PI / 2;
+    baseWheelsGroup.add(leftRearWheel);
 
-    const rightRearWheel = new THREE.Mesh(rearWheelGeometry, wheelMaterial);
-    rightRearWheel.position.set(-1.0, 0.6, -0.6);
-    rightRearWheel.rotation.z = Math.PI / 2;
-    cannonGroup.add(rightRearWheel);
+    const rightRearWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+    rightRearWheel.position.set(-0.7, 0.35, -0.5);
+    rightRearWheel.rotation.x = Math.PI / 2;
+    baseWheelsGroup.add(rightRearWheel);
 
-    // Ruedas delanteras (más pequeñas)
-    const frontWheelGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.25, 12);
+    // Ruedas delanteras
+    const leftFrontWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+    leftFrontWheel.position.set(0.7, 0.35, 0.5);
+    leftFrontWheel.rotation.x = Math.PI / 2;
+    baseWheelsGroup.add(leftFrontWheel);
 
-    const leftFrontWheel = new THREE.Mesh(frontWheelGeometry, wheelMaterial);
-    leftFrontWheel.position.set(0.8, 0.6, 0.6);
-    leftFrontWheel.rotation.z = Math.PI / 2;
-    cannonGroup.add(leftFrontWheel);
+    const rightFrontWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+    rightFrontWheel.position.set(0.7, 0.35, -0.5);
+    rightFrontWheel.rotation.x = Math.PI / 2;
+    baseWheelsGroup.add(rightFrontWheel);
 
-    const rightFrontWheel = new THREE.Mesh(frontWheelGeometry, wheelMaterial);
-    rightFrontWheel.position.set(0.8, 0.6, -0.6);
-    rightFrontWheel.rotation.z = Math.PI / 2;
-    cannonGroup.add(rightFrontWheel);
+    // SOPORTE DE MADERA para los trunnions
+    const supportGeometry = new THREE.BoxGeometry(0.4, 0.15, 0.4);
+    const leftSupport = new THREE.Mesh(supportGeometry, woodMaterial);
+    leftSupport.position.set(0, 0.45, 0.2);
+    baseWheelsGroup.add(leftSupport);
 
-    // -------------------- CAÑÓN PRINCIPAL --------------------
+    const rightSupport = new THREE.Mesh(supportGeometry, woodMaterial);
+    rightSupport.position.set(0, 0.45, -0.2);
+    baseWheelsGroup.add(rightSupport);
 
-    // Grupo para el cañón (para poder rotarlo/elevarlo)
+    // -------------------- CAÑÓN (mantener orientación original) --------------------
     const cannonBarrelGroup = new THREE.Group();
     cannonBarrelGroup.name = "cannonBarrel";
-    cannonBarrelGroup.position.set(0, 0.6, 0); // Centro en la carreta
+    cannonBarrelGroup.position.set(0, 0.6, 0);
+    cannonGroup.add(cannonBarrelGroup);
 
-    // CAÑÓN principal (cilindro)
-    const barrelGeometry = new THREE.CylinderGeometry(0.2, 0.25, 2.5, 10);
+    // ¡INCLINACIÓN INICIAL DE 45°!
+    cannonBarrelGroup.rotation.x = -Math.PI / 4; // 45° hacia arriba
+
+    // CAÑÓN principal - ORIENTACIÓN ORIGINAL
+    const barrelGeometry = new THREE.CylinderGeometry(0.15, 0.18, 2.0, 12);
     const cannonBarrel = new THREE.Mesh(barrelGeometry, metalMaterial);
-    cannonBarrel.position.set(0, 0.3, 0);
-    cannonBarrel.rotation.z = Math.PI / 2; // Horizontal
+    cannonBarrel.position.set(0, 0, 0);
+    cannonBarrel.rotation.x = Math.PI / 2; // Horizontal (como en tu código)
     cannonBarrelGroup.add(cannonBarrel);
 
-    // Anillos de refuerzo
-    const ringGeometry = new THREE.CylinderGeometry(0.28, 0.28, 0.08, 8);
-
-    const ring1 = new THREE.Mesh(ringGeometry, brassMaterial);
-    ring1.position.set(0.5, 0.3, 0);
-    ring1.rotation.z = Math.PI / 2;
-    cannonBarrelGroup.add(ring1);
-
-    const ring2 = new THREE.Mesh(ringGeometry, brassMaterial);
-    ring2.position.set(-0.5, 0.3, 0);
-    ring2.rotation.z = Math.PI / 2;
-    cannonBarrelGroup.add(ring2);
-
-    // BOCA del cañón (más ancha)
-    const muzzleGeometry = new THREE.CylinderGeometry(0.3, 0.25, 0.3, 10);
-    const muzzle = new THREE.Mesh(muzzleGeometry, metalMaterial);
-    muzzle.name = "cannonMuzzle"; // IMPORTANTE: para identificar
-    muzzle.position.set(1.25, 0.3, 0);
-    muzzle.rotation.z = Math.PI / 2;
-    cannonBarrelGroup.add(muzzle);
-
-    // CULATA del cañón
-    const breechGeometry = new THREE.CylinderGeometry(0.3, 0.25, 0.4, 10);
-    const breech = new THREE.Mesh(breechGeometry, metalMaterial);
-    breech.position.set(-1.25, 0.3, 0);
-    breech.rotation.z = Math.PI / 2;
-    cannonBarrelGroup.add(breech);
-
-    // Tapa de culata (latón)
-    const breechCapGeometry = new THREE.CylinderGeometry(0.32, 0.32, 0.06, 8);
-    const breechCap = new THREE.Mesh(breechCapGeometry, brassMaterial);
-    breechCap.position.set(-1.43, 0.3, 0);
-    breechCap.rotation.z = Math.PI / 2;
-    cannonBarrelGroup.add(breechCap);
-
-    // Soportes del cañón (trunnions)
-    const trunnionGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.6, 8);
+    // SOPORTES del cañón (trunnions)
+    const trunnionGeometry = new THREE.CylinderGeometry(0.06, 0.06, 0.3, 8);
 
     const leftTrunnion = new THREE.Mesh(trunnionGeometry, metalMaterial);
-    leftTrunnion.position.set(0, 0.3, 0.4);
-    leftTrunnion.rotation.x = Math.PI / 2;
+    leftTrunnion.position.set(0, 0, 0.2);
+    leftTrunnion.rotation.x = Math.PI / 2; // Horizontal
     cannonBarrelGroup.add(leftTrunnion);
 
     const rightTrunnion = new THREE.Mesh(trunnionGeometry, metalMaterial);
-    rightTrunnion.position.set(0, 0.3, -0.4);
-    rightTrunnion.rotation.x = Math.PI / 2;
+    rightTrunnion.position.set(0, 0, -0.2);
+    rightTrunnion.rotation.x = Math.PI / 2; // Horizontal
     cannonBarrelGroup.add(rightTrunnion);
 
-    // Añadir el grupo del cañón a la carreta
-    cannonGroup.add(cannonBarrelGroup);
+    // BOCA del cañón
+    const muzzleGeometry = new THREE.CylinderGeometry(0.22, 0.18, 0.25, 10);
+    const muzzle = new THREE.Mesh(muzzleGeometry, metalMaterial);
+    muzzle.name = "cannonMuzzle";
+    muzzle.position.set(0, 0, 1.0); // Eje Z positivo
+    muzzle.rotation.x = Math.PI / 2; // Horizontal
+    cannonBarrelGroup.add(muzzle);
 
-    // -------------------- ACCESORIOS --------------------
+    // CULATA del cañón
+    const breechGeometry = new THREE.CylinderGeometry(0.22, 0.18, 0.3, 10);
+    const breech = new THREE.Mesh(breechGeometry, metalMaterial);
+    breech.position.set(0, 0, -1.0); // Eje Z negativo
+    breech.rotation.x = Math.PI / 2; // Horizontal
+    cannonBarrelGroup.add(breech);
 
-    // Cuña de elevación
-    const wedgeGeometry = new THREE.BoxGeometry(0.3, 0.15, 0.6);
-    const wedge = new THREE.Mesh(wedgeGeometry, woodMaterial);
-    wedge.position.set(0.3, 0.2, 0);
-    cannonGroup.add(wedge);
+    // Tapa de culata (latón)
+    const breechCapGeometry = new THREE.CylinderGeometry(0.25, 0.25, 0.08, 8);
+    const breechCap = new THREE.Mesh(breechCapGeometry, brassMaterial);
+    breechCap.position.set(0, 0, -1.1); // Más atrás
+    breechCap.rotation.x = Math.PI / 2; // Horizontal
+    cannonBarrelGroup.add(breechCap);
 
-    // Balas de cañón (pila)
-    const cannonballGeometry = new THREE.SphereGeometry(0.12, 8, 8);
-    const cannonballMaterial = new THREE.MeshLambertMaterial({
-      color: 0x111111,
-    });
-
-    // Pila de 3 balas al lado del cañón
-    for (let i = 0; i < 3; i++) {
-      const cannonball = new THREE.Mesh(cannonballGeometry, cannonballMaterial);
-      cannonball.position.set(-1.5, 0.12 + i * 0.25, 0.8);
-      cannonGroup.add(cannonball);
-    }
-
-    // Barril de pólvora
-    const powderKegGeometry = new THREE.CylinderGeometry(0.25, 0.25, 0.4, 8);
-    const powderKeg = new THREE.Mesh(powderKegGeometry, woodMaterial);
-    powderKeg.position.set(-1.5, 0.2, -0.8);
-    cannonGroup.add(powderKeg);
+    // Anillo central
+    const ringGeometry = new THREE.CylinderGeometry(0.21, 0.21, 0.08, 10);
+    const ring = new THREE.Mesh(ringGeometry, brassMaterial);
+    ring.position.set(0, 0, 0);
+    ring.rotation.x = Math.PI / 2; // Horizontal
+    cannonBarrelGroup.add(ring);
 
     // -------------------- POSICIONAMIENTO FINAL --------------------
 
     // Posicionar todo el cañón en el escenario
-    cannonGroup.position.set(0, 1, -15);
-    cannonGroup.rotation.y = Math.PI; // Mirar hacia adelante
+    cannonGroup.position.set(0, 0, -15);
+    cannonGroup.rotation.y = 0; // Mirar hacia Z positivo
 
     // Añadir a la escena
     scene.add(cannonGroup);
 
-    console.log("Cañón pirata 3D creado exitosamente");
+    console.log("Cañón pirata 3D creado exitosamente - Inclinación: 45°");
+    console.log("Base y ruedas rotadas 90°");
 
-    // Calcular el punto de disparo (en la boca del cañón)
-    // Usamos la posición global del cañón + la posición de la boca
+    // Calcular el punto de disparo
+    scene.updateMatrixWorld(true);
+
+    // Obtener posición mundial de la boca
     const muzzleWorldPosition = new THREE.Vector3();
     muzzle.getWorldPosition(muzzleWorldPosition);
+
+    // Offset para proyectiles (en coordenadas locales del cañón)
+    const projectileStartOffset = new THREE.Vector3(0, 0, 1.05);
 
     // Crear físicas para el cañón
     if (Ammo && physicsWorld) {
       const transform = new Ammo.btTransform();
       transform.setIdentity();
-      transform.setOrigin(new Ammo.btVector3(0, 1, -15));
+      transform.setOrigin(new Ammo.btVector3(0, 0.5, -15));
 
       const motionState = new Ammo.btDefaultMotionState(transform);
-      const colShape = new Ammo.btBoxShape(new Ammo.btVector3(1.25, 0.5, 0.6));
+      const colShape = new Ammo.btBoxShape(new Ammo.btVector3(0.9, 0.4, 0.5));
       const localInertia = new Ammo.btVector3(0, 0, 0);
       colShape.calculateLocalInertia(1, localInertia);
 
@@ -692,27 +680,30 @@ export async function loadCatapultModel(scene, physicsWorld) {
 
       physicsWorld.addRigidBody(body);
 
-      // Configuración del cañón
       const cannonConfig = {
         group: cannonGroup,
         body: body,
+        baseWheelsGroup: baseWheelsGroup,
         barrelGroup: cannonBarrelGroup,
         muzzle: muzzle,
-        angle: 10,
-        power: 50,
+        muzzleWorldPosition: muzzleWorldPosition,
+
+        // Propiedades de control
+        angle: 45,
+        power: 30,
         rotationSpeed: 0.02,
-        maxElevation: Math.PI / 4, // 45 grados máximo
-        minElevation: -Math.PI / 12, // -15 grados mínimo
-        currentElevation: 0,
-        baseRotation: 0, // <-- AÑADE ESTO: rotación horizontal
-        baseRotationSpeed: 0.03, // <-- AÑADE ESTO: velocidad rotación horizontal
-        maxBaseRotation: Math.PI / 4, // <-- AÑADE ESTO: 45° izquierda/derecha
+        maxElevation: (80 * Math.PI) / 180, // 80 grados máximo
+        minElevation: (10 * Math.PI) / 180, // 10 grados mínimo
+        currentElevation: (45 * Math.PI) / 180, // 45° inicial (en radianes)
+        baseRotation: 0, // Rotación horizontal inicial
+        baseRotationSpeed: 0.03,
+        maxBaseRotation: Infinity, // ¡SIN LÍMITE! (puede girar 360° o más)
         isRotating: false,
         rotationDirection: 0,
-        isBaseRotating: false, // <-- AÑADE ESTO: para rotación horizontal
-        baseRotationDirection: 0, // <-- AÑADE ESTO
+        isBaseRotating: false,
+        baseRotationDirection: 0,
         type: "pirate-cannon",
-        projectileStartOffset: new THREE.Vector3(1.3, 0.3, 0),
+        projectileStartOffset: projectileStartOffset,
       };
 
       return cannonConfig;
@@ -721,26 +712,30 @@ export async function loadCatapultModel(scene, physicsWorld) {
     // Configuración sin física
     const cannonConfig = {
       group: cannonGroup,
+      baseWheelsGroup: baseWheelsGroup,
       barrelGroup: cannonBarrelGroup,
       muzzle: muzzle,
-      angle: 10,
-      power: 50,
+      muzzleWorldPosition: muzzleWorldPosition,
+      angle: 45,
+      power: 30,
       rotationSpeed: 0.02,
-      maxElevation: Math.PI / 4,
-      minElevation: -Math.PI / 12,
-      currentElevation: 0,
+      maxElevation: (80 * Math.PI) / 180, // 80 grados máximo
+      minElevation: (10 * Math.PI) / 180, // 10 grados mínimo
+      currentElevation: (45 * Math.PI) / 180, // 45° inicial (en radianes)
+      baseRotation: 0, // Rotación horizontal inicial
+      baseRotationSpeed: 0.03,
+      maxBaseRotation: Infinity, // ¡SIN LÍMITE!
       isRotating: false,
       rotationDirection: 0,
+      isBaseRotating: false,
+      baseRotationDirection: 0,
       type: "pirate-cannon",
-      projectileStartOffset: new THREE.Vector3(1.3, 0.3, 0),
+      projectileStartOffset: projectileStartOffset,
     };
 
     return cannonConfig;
   } catch (error) {
     console.error("Error creando cañón pirata:", error);
-
-    // Fallback a catapulta simple
-    console.log("Usando catapulta simple como fallback");
     return createSimpleCatapult(scene, physicsWorld);
   }
 }
