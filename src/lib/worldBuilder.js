@@ -504,77 +504,181 @@ export function createProjectile(type, position, velocity = null) {
   return projectile;
 }
 
-// FUNCIÓN MODIFICADA PARA CARGAR MODELO DE CATAPULTA
 export async function loadCatapultModel(scene, physicsWorld) {
-  console.log("Cargando modelo de catapulta...");
+  console.log("Creando cañón de artillería pirata...");
 
   try {
-    // Ruta al modelo - cambia esto si tu modelo está en otra ubicación
-    const modelUrl = "./models/catapult.glb";
-    console.log("Intentando cargar modelo desde:", modelUrl);
+    // Crear grupo principal para el cañón
+    const cannonGroup = new THREE.Group();
+    cannonGroup.name = "pirateCannon";
 
-    // Intentar cargar el modelo GLTF de catapulta
-    const gltf = await gltfLoader.loadAsync(modelUrl);
-
-    console.log("Modelo 3D de catapulta cargado exitosamente");
-
-    // Obtener el modelo de la escena
-    const model = gltf.scene;
-
-    // Ajustar posición, escala y rotación
-    model.position.set(0, 1, -15);
-    model.scale.set(1, 1, 1); // Escala normal
-    model.rotation.y = Math.PI; // Rotar 180° para que mire hacia adelante
-
-    // Asegurarse de que el modelo sea visible
-    model.traverse((child) => {
-      if (child.isMesh) {
-        child.visible = true;
-        // Añadir materiales básicos si es necesario
-        if (!child.material) {
-          child.material = materials.wood;
-        }
-      }
+    // Materiales simples pero efectivos
+    const metalMaterial = new THREE.MeshLambertMaterial({
+      color: 0x666666, // Gris metálico
     });
 
-    // Buscar la copa en el modelo
-    let cup = null;
-    model.traverse((child) => {
-      if (child.isMesh) {
-        if (
-          child.name.toLowerCase().includes("cup") ||
-          child.name.toLowerCase().includes("bowl") ||
-          child.name.toLowerCase().includes("spoon")
-        ) {
-          cup = child;
-          console.log("Copa encontrada en el modelo:", child.name);
-        }
-      }
+    const woodMaterial = new THREE.MeshLambertMaterial({
+      color: 0x8b4513, // Madera marrón
     });
 
-    // Si no encuentra copa, crear una simple en una posición visible
-    if (!cup) {
-      console.log("Creando copa artificial...");
-      const cupGeometry = new THREE.SphereGeometry(0.3, 8, 8);
-      cup = new THREE.Mesh(cupGeometry, materials.metal);
-      cup.name = "catapultCup";
-      cup.position.set(1, 3, 0); // Posición más visible
-      model.add(cup);
+    const brassMaterial = new THREE.MeshLambertMaterial({
+      color: 0xd4a017, // Latón dorado
+    });
+
+    const wheelMaterial = new THREE.MeshLambertMaterial({
+      color: 0x333333, // Ruedas oscuras
+    });
+
+    // -------------------- CARRETA SIMPLIFICADA --------------------
+
+    // Base de la carreta (más pequeña y mejor posicionada)
+    const carriageBaseGeometry = new THREE.BoxGeometry(2.5, 0.4, 1.2);
+    const carriageBase = new THREE.Mesh(carriageBaseGeometry, woodMaterial);
+    carriageBase.position.set(0, 0.2, 0);
+    cannonGroup.add(carriageBase);
+
+    // Ruedas traseras (más grandes)
+    const rearWheelGeometry = new THREE.CylinderGeometry(0.6, 0.6, 0.25, 12);
+
+    const leftRearWheel = new THREE.Mesh(rearWheelGeometry, wheelMaterial);
+    leftRearWheel.position.set(-1.0, 0.6, 0.6);
+    leftRearWheel.rotation.z = Math.PI / 2;
+    cannonGroup.add(leftRearWheel);
+
+    const rightRearWheel = new THREE.Mesh(rearWheelGeometry, wheelMaterial);
+    rightRearWheel.position.set(-1.0, 0.6, -0.6);
+    rightRearWheel.rotation.z = Math.PI / 2;
+    cannonGroup.add(rightRearWheel);
+
+    // Ruedas delanteras (más pequeñas)
+    const frontWheelGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.25, 12);
+
+    const leftFrontWheel = new THREE.Mesh(frontWheelGeometry, wheelMaterial);
+    leftFrontWheel.position.set(0.8, 0.6, 0.6);
+    leftFrontWheel.rotation.z = Math.PI / 2;
+    cannonGroup.add(leftFrontWheel);
+
+    const rightFrontWheel = new THREE.Mesh(frontWheelGeometry, wheelMaterial);
+    rightFrontWheel.position.set(0.8, 0.6, -0.6);
+    rightFrontWheel.rotation.z = Math.PI / 2;
+    cannonGroup.add(rightFrontWheel);
+
+    // -------------------- CAÑÓN PRINCIPAL --------------------
+
+    // Grupo para el cañón (para poder rotarlo/elevarlo)
+    const cannonBarrelGroup = new THREE.Group();
+    cannonBarrelGroup.name = "cannonBarrel";
+    cannonBarrelGroup.position.set(0, 0.6, 0); // Centro en la carreta
+
+    // CAÑÓN principal (cilindro)
+    const barrelGeometry = new THREE.CylinderGeometry(0.2, 0.25, 2.5, 10);
+    const cannonBarrel = new THREE.Mesh(barrelGeometry, metalMaterial);
+    cannonBarrel.position.set(0, 0.3, 0);
+    cannonBarrel.rotation.z = Math.PI / 2; // Horizontal
+    cannonBarrelGroup.add(cannonBarrel);
+
+    // Anillos de refuerzo
+    const ringGeometry = new THREE.CylinderGeometry(0.28, 0.28, 0.08, 8);
+
+    const ring1 = new THREE.Mesh(ringGeometry, brassMaterial);
+    ring1.position.set(0.5, 0.3, 0);
+    ring1.rotation.z = Math.PI / 2;
+    cannonBarrelGroup.add(ring1);
+
+    const ring2 = new THREE.Mesh(ringGeometry, brassMaterial);
+    ring2.position.set(-0.5, 0.3, 0);
+    ring2.rotation.z = Math.PI / 2;
+    cannonBarrelGroup.add(ring2);
+
+    // BOCA del cañón (más ancha)
+    const muzzleGeometry = new THREE.CylinderGeometry(0.3, 0.25, 0.3, 10);
+    const muzzle = new THREE.Mesh(muzzleGeometry, metalMaterial);
+    muzzle.name = "cannonMuzzle"; // IMPORTANTE: para identificar
+    muzzle.position.set(1.25, 0.3, 0);
+    muzzle.rotation.z = Math.PI / 2;
+    cannonBarrelGroup.add(muzzle);
+
+    // CULATA del cañón
+    const breechGeometry = new THREE.CylinderGeometry(0.3, 0.25, 0.4, 10);
+    const breech = new THREE.Mesh(breechGeometry, metalMaterial);
+    breech.position.set(-1.25, 0.3, 0);
+    breech.rotation.z = Math.PI / 2;
+    cannonBarrelGroup.add(breech);
+
+    // Tapa de culata (latón)
+    const breechCapGeometry = new THREE.CylinderGeometry(0.32, 0.32, 0.06, 8);
+    const breechCap = new THREE.Mesh(breechCapGeometry, brassMaterial);
+    breechCap.position.set(-1.43, 0.3, 0);
+    breechCap.rotation.z = Math.PI / 2;
+    cannonBarrelGroup.add(breechCap);
+
+    // Soportes del cañón (trunnions)
+    const trunnionGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.6, 8);
+
+    const leftTrunnion = new THREE.Mesh(trunnionGeometry, metalMaterial);
+    leftTrunnion.position.set(0, 0.3, 0.4);
+    leftTrunnion.rotation.x = Math.PI / 2;
+    cannonBarrelGroup.add(leftTrunnion);
+
+    const rightTrunnion = new THREE.Mesh(trunnionGeometry, metalMaterial);
+    rightTrunnion.position.set(0, 0.3, -0.4);
+    rightTrunnion.rotation.x = Math.PI / 2;
+    cannonBarrelGroup.add(rightTrunnion);
+
+    // Añadir el grupo del cañón a la carreta
+    cannonGroup.add(cannonBarrelGroup);
+
+    // -------------------- ACCESORIOS --------------------
+
+    // Cuña de elevación
+    const wedgeGeometry = new THREE.BoxGeometry(0.3, 0.15, 0.6);
+    const wedge = new THREE.Mesh(wedgeGeometry, woodMaterial);
+    wedge.position.set(0.3, 0.2, 0);
+    cannonGroup.add(wedge);
+
+    // Balas de cañón (pila)
+    const cannonballGeometry = new THREE.SphereGeometry(0.12, 8, 8);
+    const cannonballMaterial = new THREE.MeshLambertMaterial({
+      color: 0x111111,
+    });
+
+    // Pila de 3 balas al lado del cañón
+    for (let i = 0; i < 3; i++) {
+      const cannonball = new THREE.Mesh(cannonballGeometry, cannonballMaterial);
+      cannonball.position.set(-1.5, 0.12 + i * 0.25, 0.8);
+      cannonGroup.add(cannonball);
     }
 
-    // Añadir el modelo a la escena
-    scene.add(model);
+    // Barril de pólvora
+    const powderKegGeometry = new THREE.CylinderGeometry(0.25, 0.25, 0.4, 8);
+    const powderKeg = new THREE.Mesh(powderKegGeometry, woodMaterial);
+    powderKeg.position.set(-1.5, 0.2, -0.8);
+    cannonGroup.add(powderKeg);
 
-    console.log("Catapulta añadida a la escena en posición:", model.position);
+    // -------------------- POSICIONAMIENTO FINAL --------------------
 
-    // Crear físicas para la catapulta
+    // Posicionar todo el cañón en el escenario
+    cannonGroup.position.set(0, 1, -15);
+    cannonGroup.rotation.y = Math.PI; // Mirar hacia adelante
+
+    // Añadir a la escena
+    scene.add(cannonGroup);
+
+    console.log("Cañón pirata 3D creado exitosamente");
+
+    // Calcular el punto de disparo (en la boca del cañón)
+    // Usamos la posición global del cañón + la posición de la boca
+    const muzzleWorldPosition = new THREE.Vector3();
+    muzzle.getWorldPosition(muzzleWorldPosition);
+
+    // Crear físicas para el cañón
     if (Ammo && physicsWorld) {
       const transform = new Ammo.btTransform();
       transform.setIdentity();
       transform.setOrigin(new Ammo.btVector3(0, 1, -15));
 
       const motionState = new Ammo.btDefaultMotionState(transform);
-      const colShape = new Ammo.btBoxShape(new Ammo.btVector3(2, 0.5, 1));
+      const colShape = new Ammo.btBoxShape(new Ammo.btVector3(1.25, 0.5, 0.6));
       const localInertia = new Ammo.btVector3(0, 0, 0);
       colShape.calculateLocalInertia(1, localInertia);
 
@@ -588,169 +692,55 @@ export async function loadCatapultModel(scene, physicsWorld) {
 
       physicsWorld.addRigidBody(body);
 
-      // Configuración de la catapulta
-      const catapultConfig = {
-        group: model,
+      // Configuración del cañón
+      const cannonConfig = {
+        group: cannonGroup,
         body: body,
-        cup: cup,
-        type: "gltf-model",
-        position: new THREE.Vector3(0, 1, -15),
+        barrelGroup: cannonBarrelGroup,
+        muzzle: muzzle,
+        angle: 10,
+        power: 50,
+        rotationSpeed: 0.02,
+        maxElevation: Math.PI / 4, // 45 grados máximo
+        minElevation: -Math.PI / 12, // -15 grados mínimo
+        currentElevation: 0,
+        baseRotation: 0, // <-- AÑADE ESTO: rotación horizontal
+        baseRotationSpeed: 0.03, // <-- AÑADE ESTO: velocidad rotación horizontal
+        maxBaseRotation: Math.PI / 4, // <-- AÑADE ESTO: 45° izquierda/derecha
+        isRotating: false,
+        rotationDirection: 0,
+        isBaseRotating: false, // <-- AÑADE ESTO: para rotación horizontal
+        baseRotationDirection: 0, // <-- AÑADE ESTO
+        type: "pirate-cannon",
+        projectileStartOffset: new THREE.Vector3(1.3, 0.3, 0),
       };
 
-      return catapultConfig;
+      return cannonConfig;
     }
 
-    // Si no hay física, retornar configuración básica
-    const catapultConfig = {
-      group: model,
-      cup: cup,
-      type: "gltf-model",
-      position: new THREE.Vector3(0, 1, -15),
+    // Configuración sin física
+    const cannonConfig = {
+      group: cannonGroup,
+      barrelGroup: cannonBarrelGroup,
+      muzzle: muzzle,
+      angle: 10,
+      power: 50,
+      rotationSpeed: 0.02,
+      maxElevation: Math.PI / 4,
+      minElevation: -Math.PI / 12,
+      currentElevation: 0,
+      isRotating: false,
+      rotationDirection: 0,
+      type: "pirate-cannon",
+      projectileStartOffset: new THREE.Vector3(1.3, 0.3, 0),
     };
 
-    return catapultConfig;
+    return cannonConfig;
   } catch (error) {
-    console.error("Error cargando modelo 3D de catapulta:", error);
-    console.log("Detalles del error:", error.message);
+    console.error("Error creando cañón pirata:", error);
 
     // Fallback a catapulta simple
     console.log("Usando catapulta simple como fallback");
     return createSimpleCatapult(scene, physicsWorld);
   }
-}
-
-// FUNCIÓN PARA CREAR CATAPULTA SIMPLE (FALLBACK)
-export function createSimpleCatapult(scene, physicsWorld) {
-  console.log("Creando catapulta simple...");
-
-  const group = new THREE.Group();
-
-  // Base
-  const baseGeometry = new THREE.BoxGeometry(4, 0.6, 3);
-  const base = new THREE.Mesh(baseGeometry, materials.wood);
-  base.position.y = 0.3;
-
-  // Ruedas
-  const wheelGeometry = new THREE.CylinderGeometry(0.5, 0.5, 0.3, 16);
-  const leftWheel = new THREE.Mesh(wheelGeometry, materials.metal);
-  leftWheel.position.set(-1.5, 0.5, 1.2);
-  leftWheel.rotation.z = Math.PI / 2;
-
-  const rightWheel = new THREE.Mesh(wheelGeometry, materials.metal);
-  rightWheel.position.set(1.5, 0.5, 1.2);
-  rightWheel.rotation.z = Math.PI / 2;
-
-  const leftWheelBack = new THREE.Mesh(wheelGeometry, materials.metal);
-  leftWheelBack.position.set(-1.5, 0.5, -1.2);
-  leftWheelBack.rotation.z = Math.PI / 2;
-
-  const rightWheelBack = new THREE.Mesh(wheelGeometry, materials.metal);
-  rightWheelBack.position.set(1.5, 0.5, -1.2);
-  rightWheelBack.rotation.z = Math.PI / 2;
-
-  // Brazo
-  const armGroup = new THREE.Group();
-  armGroup.name = "catapultArm";
-
-  const armGeometry = new THREE.BoxGeometry(0.3, 5, 0.3);
-  const arm = new THREE.Mesh(armGeometry, materials.wood);
-  arm.position.y = 2.5;
-
-  // Copa en el extremo del brazo
-  const cupGeometry = new THREE.SphereGeometry(0.5, 8, 8);
-  const cup = new THREE.Mesh(cupGeometry, materials.metal);
-  cup.name = "catapultCup";
-  cup.position.set(0, 5, 0);
-  cup.scale.set(0.9, 0.4, 0.9);
-
-  // Contrapeso
-  const counterweightGeometry = new THREE.BoxGeometry(1.5, 1.2, 1);
-  const counterweight = new THREE.Mesh(counterweightGeometry, materials.metal);
-  counterweight.position.set(0, -1, 0);
-
-  armGroup.add(arm, cup, counterweight);
-  armGroup.position.set(0, 1.5, 0);
-  armGroup.rotation.z = -Math.PI / 6;
-
-  // Eje
-  const axleGeometry = new THREE.CylinderGeometry(0.15, 0.15, 2, 8);
-  const axle = new THREE.Mesh(axleGeometry, materials.metal);
-  axle.position.set(0, 1.5, 0);
-  axle.rotation.z = Math.PI / 2;
-
-  group.add(
-    base,
-    leftWheel,
-    rightWheel,
-    leftWheelBack,
-    rightWheelBack,
-    axle,
-    armGroup
-  );
-
-  // Posicionar la catapulta
-  group.position.set(0, 1, -15);
-  group.rotation.y = Math.PI;
-
-  scene.add(group);
-
-  console.log("Catapulta simple creada en posición:", group.position);
-
-  // Crear físicas para la catapulta
-  if (Ammo && physicsWorld) {
-    const transform = new Ammo.btTransform();
-    transform.setIdentity();
-    transform.setOrigin(new Ammo.btVector3(0, 1, -15));
-
-    const motionState = new Ammo.btDefaultMotionState(transform);
-    const colShape = new Ammo.btBoxShape(new Ammo.btVector3(2, 0.5, 1.5));
-    const localInertia = new Ammo.btVector3(0, 0, 0);
-    colShape.calculateLocalInertia(1, localInertia);
-
-    const rbInfo = new Ammo.btRigidBodyConstructionInfo(
-      0,
-      motionState,
-      colShape,
-      localInertia
-    );
-    const body = new Ammo.btRigidBody(rbInfo);
-
-    physicsWorld.addRigidBody(body);
-
-    // Configuración de la catapulta
-    const catapultConfig = {
-      group: group,
-      body: body,
-      armGroup: armGroup,
-      cup: cup,
-      type: "simple",
-    };
-
-    return catapultConfig;
-  }
-
-  // Si no hay física, retornar configuración básica
-  const catapultConfig = {
-    group: group,
-    armGroup: armGroup,
-    cup: cup,
-    type: "simple",
-  };
-
-  return catapultConfig;
-}
-
-// FUNCIÓN PARA CREAR CATAPULTA (MANTENIDA PARA COMPATIBILIDAD)
-export function createCatapult(position = new THREE.Vector3(-25, 0, 0)) {
-  console.warn(
-    "createCatapult está deprecada. Usa loadCatapultModel en su lugar."
-  );
-
-  const group = new THREE.Group();
-  group.position.copy(position);
-
-  // Crear catapulta simple como placeholder
-  createSimpleCatapult(group, null);
-
-  return group;
 }
